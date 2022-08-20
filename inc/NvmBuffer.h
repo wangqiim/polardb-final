@@ -94,7 +94,7 @@ namespace com
 
 const static uint32_t BigPageCount = 23;
 const static uint32_t PageData =  16896;
-const static uint32_t BigPageData = 264 * 1000000;
+const static uint32_t BigPageData = 264 * 1050000;
 
 struct BigPage {
   char data[BigPageData];
@@ -105,8 +105,6 @@ struct Page {
     //271 条tuple
     char data[PageData];
     uint32_t offset;
-    uint32_t is_drty;
-    uint64_t tupleCount; 
 };
 
 PMEMlogpool *plp[50] = {nullptr};
@@ -123,6 +121,8 @@ static inline bool exists_test (const std::string& name) {
   std::ifstream f(name.c_str());
   return f.good();
 }
+
+static uint64_t over_offset[BigPageCount];
 
 static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
   std::string base_path = std::string(aep_dir);
@@ -161,7 +161,7 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
   for (uint32_t i = 0; i < MemBlockCount; i++) {
       mem_path[i] = base_disk + "disk"+ std::to_string(i) + ".txt";
       //BigPage不需要写PMEM
-      if (i < BigPageCount) mmap_size = BigPageData + 16;
+      if (i < BigPageCount) {mmap_size = BigPageData + 16; over_offset[i] = 1000000U * 264U;  }
       else mmap_size = PageData + 24;
 
       bool is_create = false;
@@ -194,8 +194,6 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
         if (is_create) {
           memset(pages[i], 0, sizeof(Page));
           pages[i] -> offset = 0;
-          pages[i] -> is_drty = 0;
-          pages[i] -> tupleCount = 0;
         }
       }
       close(fd);
@@ -204,67 +202,41 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
 
 
 
-pthread_mutex_t mem_mtx[12];    
-static void Write(const char *tuple, size_t len, int tid) {
+pthread_mutex_t mem_mtx[12];
+
+static void WriteAhead(const char *tuple, size_t len, int tid) {
+  BigPage *page = bigpages[tid];
+  rte_mov64((uint8_t *)page->data + over_offset[tid], (const uint8_t *)tuple);
+  rte_mov64((uint8_t *)page->data + over_offset[tid] + 64UL, (const uint8_t *)tuple + 64UL);
+  rte_mov64((uint8_t *)page->data + over_offset[tid] + 128UL, (const uint8_t *)tuple + 128UL);
+  com::xmemcopy<72>::copy(page->data + (over_offset[tid] + 192UL), tuple + 192UL);
+
+  over_offset[tid] += 264UL;
+}
+static uint64_t normal_offset[MemBlockCount] = {0};
+static void Write(const char *tuple, size_t len, int tid, int write_count) {
   if (tid < BigPageCount) {
     BigPage *page = bigpages[tid];
-    // memcpy(page->data + (page -> offset), tuple, 16UL);
-    // memcpy(page->data + (page -> offset) + 16UL, tuple + 16UL, 256UL);
-
-    // com::xmemcopy<64>::copy(page->data + (page -> offset), tuple);
-    // com::xmemcopy<64>::copy(page->data + (page -> offset + 64UL), tuple + 64UL);
-    // com::xmemcopy<64>::copy(page->data + (page -> offset + 128UL), tuple + 128UL);
-    // com::xmemcopy<72>::copy(page->data + (page -> offset + 192UL), tuple + 192UL);
-
-    rte_mov64((uint8_t *)page->data + (page -> offset), (const uint8_t *)tuple);
-    rte_mov64((uint8_t *)page->data + (page -> offset) + 64UL, (const uint8_t *)tuple + 64UL);
-    rte_mov64((uint8_t *)page->data + (page -> offset) + 128UL, (const uint8_t *)tuple + 128UL);
-    // rte_mov64((uint8_t *)page->data + (page -> offset) + 192UL, (const uint8_t *)tuple + 192UL);
-    // rte_mov16((uint8_t *)page->data + (page -> offset) + 256UL, (const uint8_t *)tuple + 256UL);
-
-    // rte_memcpy_aligned(page->data + (page -> offset), tuple, 64);
-    // rte_memcpy_aligned(page->data + (page -> offset + 64UL), tuple + 64UL, 64);
-    // rte_memcpy_aligned(page->data + (page -> offset + 128UL), tuple + 128UL, 64);
-    com::xmemcopy<72>::copy(page->data + (page -> offset + 192UL), tuple + 192UL);
-
-    // memcpy_avx_16(page->data + (page -> offset), tuple);
-    // memcpy_avx_256(page->data + (page -> offset) + 16UL, tuple + 16UL);
-    // memcpy_fast(page->data + (page -> offset), tuple, 272UL);
-    page -> offset += 264UL;
+    uint64_t offset = write_count * 264UL;
+    rte_mov64((uint8_t *)page->data + offset, (const uint8_t *)tuple);
+    rte_mov64((uint8_t *)page->data + offset + 64UL, (const uint8_t *)tuple + 64UL);
+    rte_mov64((uint8_t *)page->data + offset + 128UL, (const uint8_t *)tuple + 128UL);
+    com::xmemcopy<72>::copy(page->data + (offset + 192UL), tuple + 192UL);
+    if(write_count < 10000) page -> offset = write_count + 1;
   } else {
     Page *page = pages[tid];
-    // memcpy(page->data + (page -> offset), tuple, 16UL);
-    // memcpy(page->data + (page -> offset) + 16UL, tuple + 16UL, 256UL);
-
-    // com::xmemcopy<64>::copy(page->data + (page -> offset), tuple);
-    // com::xmemcopy<64>::copy(page->data + (page -> offset + 64UL), tuple + 64UL);
-    // com::xmemcopy<64>::copy(page->data + (page -> offset + 128UL), tuple + 128UL);
-    // com::xmemcopy<72>::copy(page->data + (page -> offset + 192UL), tuple + 192UL);
-
-    rte_mov64((uint8_t *)page->data + (page -> offset), (const uint8_t *)tuple);
-    rte_mov64((uint8_t *)page->data + (page -> offset) + 64UL, (const uint8_t *)tuple + 64UL);
-    rte_mov64((uint8_t *)page->data + (page -> offset) + 128UL, (const uint8_t *)tuple + 128UL);
-
-    // rte_memcpy_aligned(page->data + (page -> offset), tuple, 64);
-    // rte_memcpy_aligned(page->data + (page -> offset + 64UL), tuple + 64UL, 64);
-    // rte_memcpy_aligned(page->data + (page -> offset + 128UL), tuple + 128UL, 64);
-    com::xmemcopy<72>::copy(page->data + (page -> offset + 192UL), tuple + 192UL);
-
-    // rte_memcpy(page->data + (page -> offset), tuple, 272UL);
-
-    // memcpy_avx_16(page->data + (page -> offset), tuple);
-    // memcpy_avx_256(page->data + (page -> offset) + 16UL, tuple + 16UL);
-
-    // memcpy_fast(page->data + (page -> offset), tuple, 272UL);
-    page -> offset += 264UL;
-    page -> tupleCount++;
-    if (page -> offset == PageData) {
+    uint64_t offset = (write_count % 64) * 264UL;
+    rte_mov64((uint8_t *)page->data + offset, (const uint8_t *)tuple);
+    rte_mov64((uint8_t *)page->data + offset + 64UL, (const uint8_t *)tuple + 64UL);
+    rte_mov64((uint8_t *)page->data + (offset) + 128UL, (const uint8_t *)tuple + 128UL);
+    com::xmemcopy<72>::copy(page->data + (offset + 192UL), tuple + 192UL);
+    if(write_count < 10000) page -> offset = write_count + 1;
+    if ((write_count + 1) % 64 == 0) {
       // pthread_mutex_lock(&mem_mtx[tid % 6]);
-      pmem_memcpy(pmemaddress[tid] + PageData * page -> is_drty, page -> data, PageData, PMEM_F_MEM_NODRAIN|PMEM_F_MEM_NONTEMPORAL|PMEM_F_MEM_WC);
-      // pmem_memcpy_nodrain(pmemaddress[tid] + sizeof(Page) * page -> is_drty, page, sizeof(Page));
+      // pmem_memcpy(pmemaddress[tid] + PageData * page -> is_drty, page -> data, PageData, PMEM_F_MEM_NODRAIN|PMEM_F_MEM_NONTEMPORAL|PMEM_F_MEM_WC);
+      pmem_memcpy_nodrain(pmemaddress[tid] + (write_count - 63) * 264UL, page->data, PageData);
+      pmem_drain();
       // pthread_mutex_unlock(&mem_mtx[tid % 6]);
-      page -> offset = 0;
-      page -> is_drty++;
     }
   }
 }
@@ -274,42 +246,44 @@ typedef Status (*RecoveryCallBack)(const char *tuple, size_t len, uint64_t recov
 static uint64_t NvmBufferRecover(RecoveryCallBack func) {
   uint32_t recoveryCount[50];
   uint64_t recovery_sum = 0;
-  for (uint32_t i = BigPageCount; i < 50; i++) {
-    Page *all_page = (Page *)memoryaddress[i];
-    recoveryCount[i] = 0;
-    for (uint32_t k = 0; k < all_page -> is_drty; k++) {
-      Page *page = (Page *)(pmemaddress[i] + k * PageData);
-      for (uint32_t j = 0; j < PageData / 264UL; j++) {
-        func(page -> data + (j * 264UL), 264UL, recovery_sum++);
-        recoveryCount[i] ++;
-      }
-    } 
+
+  for (uint32_t i = 0; i < BigPageCount; i++) {
+    BigPage *page = (BigPage *)memoryaddress[i];
+    u_int32_t need_recovery = page -> offset;
+    if (need_recovery == 10000) {
+      need_recovery = 1050000;
+    }
+    // std::cout << need_recovery << std::endl;
+    for (uint32_t j = 0; j < need_recovery; j++) {
+      func(page->data + (j * 264UL), 264UL, recovery_sum++);
+    }      
   }
 
-  for (uint32_t i = 0; i < MemBlockCount; i++) {
-    if (i < BigPageCount) {
-      BigPage *page = (BigPage *)memoryaddress[i];
-      for (uint32_t j = 0; j < page -> offset; j += 264UL) {
-        func(page->data + (j), 264UL, recovery_sum++);
-      }      
-      continue;
+  for (uint32_t i = BigPageCount; i < 50; i++) {
+    Page *smallPage = pages[i];
+    // std::cout << smallPage->offset << std::endl;
+    for (int j = 0; j < smallPage -> offset % 64; j++) {
+      func(smallPage->data + (j) * 264UL, 264UL, recovery_sum++);
     }
-    Page *page = (Page *)memoryaddress[i];
-    if (recoveryCount[i] >= page -> tupleCount) {
-      if (page -> offset == PageData) {
-        page -> offset = 0;
+
+    if (smallPage->offset == 10000) {
+      if (i < 46) smallPage->offset = 950000;
+      else smallPage->offset = 1000000;
+    }
+    uint32_t flushCount = smallPage -> offset / 64;
+    if(smallPage -> offset % 64 == 0 && flushCount > 0) {
+      flushCount -= 1;
+      for (int j = 0; j < 64; j++) {
+        func(smallPage->data + (j) * 264UL, 264UL, recovery_sum++);
       }
-      continue;
+      pmem_memcpy_nodrain(pmemaddress[i] + (smallPage -> offset - 64) * 264UL, smallPage->data, PageData);
     }
-    // std::cout << recoveryCount[i] << " " <<  i << " " << page -> offset << std::endl;
-    for (uint32_t j = 0; j < page -> offset; j+=264UL) {
-      func(page->data + (j), 264UL, recovery_sum++);
+    char *pmemPage = pmemaddress[i];
+    for (uint32_t j = 0; j < flushCount; j++) {
+      for (uint32_t k = 0; k < 64; k++) {
+         func(pmemPage + (j * 64 + k) * 264UL, 264UL, recovery_sum++);
+      }
     }
-    if (page -> offset == PageData) {
-      pmem_memcpy_nodrain(pmemaddress[i] + PageData * page -> is_drty, page -> data, PageData);
-      page -> is_drty++;
-      page -> offset = 0;
-    } 
   }
   return recovery_sum;
 }

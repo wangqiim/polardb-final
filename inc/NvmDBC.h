@@ -142,12 +142,17 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 static std::atomic<int> getTid(1);
 
 static bool is_need_write = false;
+static uint32_t over_count = 950000;
 
 static Status Put(const char *tuple, size_t len){
   static thread_local int tid = getTid++;
   static thread_local int thread_write = 0;
   _mm_prefetch(tuple, _MM_HINT_T0);
-  Write(tuple, 264UL, tid - 1);
+  if(tid - 1 >= BigPageCount && tid - 1 < 46 && thread_write > over_count) {
+    WriteAhead(tuple, 264UL, tid - 1 - BigPageCount);
+  } else {
+    Write(tuple, 264UL, tid - 1, thread_write);
+  }
 
   if (write_count < 1000) {
     User *user = (User *)tuple;
