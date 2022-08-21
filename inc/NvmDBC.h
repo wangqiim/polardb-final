@@ -122,7 +122,7 @@ static emhash7::HashMap<uint64_t, std::vector<uint64_t>> sk;
 // static emhash8::HashMap<uint64_t, My128Str, UInt64Hash> uk_name;
 // static emhash5::HashMap<uint64_t, uint64_t> sk_pk;
 
-static MyStringHashMap pk__uk;
+static MyString256HashMap pk__uk;
 static MyStringHashMap uk__name;
 // static MyUInt64HashMap sk__pk;
 
@@ -140,12 +140,13 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 }
 
 static std::atomic<int> getTid(0);
+static std::atomic<int> putTid(0);
 
 static bool is_need_write = false;
 static uint32_t over_count = 940000;
 
 static Status Put(const char *tuple, size_t len){
-  static thread_local int tid = getTid++;
+  static thread_local int tid = putTid++;
   static thread_local int thread_write = 0;
   _mm_prefetch(tuple, _MM_HINT_T0);
   if(tid >= BigPageCount && tid < 46 && thread_write >= over_count) {
@@ -174,23 +175,45 @@ static Status Put(const char *tuple, size_t len){
 
 static Status Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res){
-
+  static thread_local int tid = getTid++;
+  static thread_local int getCount = 0;
   if(is_full_recovery) {
     if (where_column == Id) {
       char *data = pk__uk.get(*(uint64_t *)column_key);
       memcpy(res, data, 128);
+
+      if (tid == 0 && getCount < 50) {
+        std::cout << tid  << "getCount = " << getCount++ << " uid = ";
+        for (int i = 0; i < 127; i++)
+          printf("%u-",data[i]);
+        printf("%u name = ",data[127]);
+        for (int i = 128; i < 255; i++)
+          printf("%u-",data[i]);   
+        printf("%u\n",data[255]);
+      }
+
       return 1;
     }
 
     if (where_column == Userid) {
       char *data = uk__name.get(*(uint64_t *)column_key);
       memcpy(res, data, 128);
+
+      if (tid == 0 && getCount < 50) {
+        std::cout << tid  << " getCount = " << getCount++ << " name = ";
+        for (int i = 0; i < 127; i++)
+          printf("%u-",data[i]);
+        printf("%u\n",data[127]);
+      }
+      getCount++;
       return 1;
     }
 
     if (where_column ==  Salary) {
       // uint64_t result = sk__pk.get(*(uint64_t *)(column_key));
       memcpy(res, column_key, 8);
+
+      getCount++;
       return 1;
     }
   }
