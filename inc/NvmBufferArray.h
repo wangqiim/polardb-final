@@ -122,7 +122,7 @@ static inline bool exists_test (const std::string& name) {
 }
 
 static uint64_t over_offset[BigPageCount];
-static uint64_t nomal_offset[MemBlockCount];
+static uint32_t nomal_offset[MemBlockCount];
 
 static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
   std::string base_path = std::string(aep_dir);
