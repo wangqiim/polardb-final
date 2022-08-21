@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "Config.h"
-#include "NvmBuffer.h"
+#include "NvmBufferArray.h"
 #include "./tools/EMHash/hash_table6_int64_to_int64.h"
 #include "./tools/EMHash/hash_table7_int64_to_int32.h"
 #include "./tools/EMHash/hash_table8_str_to_int.h"
