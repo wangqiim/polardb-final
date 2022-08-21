@@ -93,7 +93,7 @@ namespace com
 
 const static uint32_t BigPageCount = 23;
 const static uint32_t PageData =  16512UL;
-const static uint32_t BigPageData = 258UL * 1070000;
+const static uint32_t BigPageData = 258UL * 1070000U;
 
 struct BigPage {
   char data[BigPageData];
@@ -122,6 +122,7 @@ static inline bool exists_test (const std::string& name) {
 }
 
 static uint64_t over_offset[BigPageCount];
+static uint64_t nomal_offset[MemBlockCount];
 
 static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
   std::string base_path = std::string(aep_dir);
@@ -163,6 +164,7 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
       if (i < BigPageCount) {mmap_size = BigPageData + 16; over_offset[i] = 1000000UL * 258UL;  }
       else mmap_size = PageData + 24;
 
+      nomal_offset[i] = 0;
       bool is_create = false;
       if(exists_test(mem_path[i])) {
         fd = open(mem_path[i].c_str(), O_RDWR);
@@ -210,7 +212,8 @@ static void WriteAhead(const char *tuple, size_t len, int tid) {
   over_offset[tid] += 258UL;
 }
 
-static void Write(const char *tuple, size_t len, int tid, int write_count) {
+static void Write(const char *tuple, size_t len, uint32_t tid) {
+  uint32_t write_count = nomal_offset[tid];
   if (tid < BigPageCount) {
     BigPage *page = bigpages[tid];
     uint64_t offset = write_count * 258UL;
@@ -231,6 +234,7 @@ static void Write(const char *tuple, size_t len, int tid, int write_count) {
       // pthread_mutex_unlock(&mem_mtx[tid % 6]);
     }
   }
+  nomal_offset[tid]++;
 }
 
 typedef Status (*RecoveryCallBack)(const char *tuple, size_t len, uint64_t recovery_count);

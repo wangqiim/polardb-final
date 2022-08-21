@@ -18,7 +18,7 @@ add_library(interface SHARED ${native_srcs} )
 
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem)
         
-#dingtalk_nxjewr
+# dingtalk_nxjewr
 
 # project("test")
 # include_directories(inc)

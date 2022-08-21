@@ -149,10 +149,10 @@ static Status Put(const char *tuple, size_t len){
   static thread_local uint32_t tid = putTid++;
   static thread_local uint32_t thread_write = 0;
   _mm_prefetch(tuple, _MM_HINT_T0);
-  if((tid - BigPageCount | 45U - tid) >= 0 && (thread_write - 700000U ｜ 769999U - thread_write) >= 0) {
+  if((int32_t)((tid - BigPageCount) | (45U - tid)) >= 0 && (int32_t)((thread_write - 700000U) | (769999U - thread_write)) >= 0) {
     WriteAhead(tuple, 264UL, tid - BigPageCount);
   } else {
-    Write(tuple, 264UL, tid, thread_write);
+    Write(tuple, 264UL, tid);
   }
 
   if (write_count < 1000) {
