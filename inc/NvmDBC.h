@@ -143,13 +143,13 @@ static std::atomic<int> getTid(0);
 static std::atomic<int> putTid(0);
 
 static bool is_need_write = false;
-static uint32_t over_count = 925000;
+static uint32_t over_count = 930000;
 
 static Status Put(const char *tuple, size_t len){
   static thread_local int tid = putTid++;
   static thread_local int thread_write = 0;
   _mm_prefetch(tuple, _MM_HINT_T0);
-  if(tid >= BigPageCount && tid < 46 && thread_write >= over_count) {
+  if(tid >= BigPageCount && tid < 46 && thread_write >= 800000 && thread_write < 870000) {
     WriteAhead(tuple, 264UL, tid - BigPageCount);
   } else {
     Write(tuple, 264UL, tid, thread_write);

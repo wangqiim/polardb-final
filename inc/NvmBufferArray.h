@@ -93,7 +93,7 @@ namespace com
 
 const static uint32_t BigPageCount = 23;
 const static uint32_t PageData =  16512UL;
-const static uint32_t BigPageData = 258UL * 1075000;
+const static uint32_t BigPageData = 258UL * 1070000;
 
 struct BigPage {
   char data[BigPageData];
@@ -242,8 +242,8 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
     BigPage *page = bigpages[i];
     uint32_t need_recovery = page -> offset;
     if (need_recovery == 10000) {
-      need_recovery = 1075000;
-      page -> offset = 1075000;
+      need_recovery = 1070000;
+      page -> offset = 1070000;
     }
     for (uint32_t j = 0; j < need_recovery; j++) {
       User user;
@@ -258,7 +258,7 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
   for (uint32_t i = BigPageCount; i < MemBlockCount; i++) {
     Page *smallPage = pages[i];
     if (smallPage->offset == 10000) {
-      if (i < 46) smallPage->offset = 925000;
+      if (i < 46) smallPage->offset = 930000;
       else smallPage->offset = 1000000;
     }
 
