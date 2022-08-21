@@ -143,7 +143,7 @@ static std::atomic<int> getTid(0);
 static std::atomic<int> putTid(0);
 
 static bool is_need_write = false;
-static uint32_t over_count = 930000;
+static uint32_t over_count = 935000;
 
 static Status Put(const char *tuple, size_t len){
   static thread_local int tid = putTid++;
