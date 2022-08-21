@@ -251,7 +251,7 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
     BigPage *page = bigpages[i];
     u_int32_t need_recovery = page -> offset;
     if (need_recovery == 10000) {
-      need_recovery = 1080000;
+      need_recovery = 1070000;
     }
     for (uint32_t j = 0; j < need_recovery; j++) {
       func(page->data + (j * 264UL), 264UL, recovery_sum++);
