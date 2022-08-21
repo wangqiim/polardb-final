@@ -253,7 +253,6 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
     if (need_recovery == 10000) {
       need_recovery = 1050000;
     }
-    // std::cout << need_recovery << std::endl;
     for (uint32_t j = 0; j < need_recovery; j++) {
       func(page->data + (j * 264UL), 264UL, recovery_sum++);
     }      
@@ -261,15 +260,16 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
 
   for (uint32_t i = BigPageCount; i < 50; i++) {
     Page *smallPage = pages[i];
-    // std::cout << smallPage->offset << std::endl;
-    for (int j = 0; j < smallPage -> offset % 64; j++) {
-      func(smallPage->data + (j) * 264UL, 264UL, recovery_sum++);
-    }
 
     if (smallPage->offset == 10000) {
       if (i < 46) smallPage->offset = 950000;
       else smallPage->offset = 1000000;
     }
+
+    for (int j = 0; j < smallPage -> offset % 64; j++) {
+      func(smallPage->data + (j) * 264UL, 264UL, recovery_sum++);
+    }
+
     uint32_t flushCount = smallPage -> offset / 64;
     if(smallPage -> offset % 64 == 0 && flushCount > 0) {
       flushCount -= 1;
