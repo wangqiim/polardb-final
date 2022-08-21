@@ -139,19 +139,19 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 
 }
 
-static std::atomic<int> getTid(1);
+static std::atomic<int> getTid(0);
 
 static bool is_need_write = false;
-static uint32_t over_count = 950000;
+static uint32_t over_count = 900000;
 
 static Status Put(const char *tuple, size_t len){
   static thread_local int tid = getTid++;
   static thread_local int thread_write = 0;
   _mm_prefetch(tuple, _MM_HINT_T0);
-  if(tid - 1 >= BigPageCount && tid - 1 < 46 && thread_write > over_count) {
-    WriteAhead(tuple, 264UL, tid - 1 - BigPageCount);
+  if(tid >= BigPageCount && tid < 46 && thread_write >= over_count) {
+    WriteAhead(tuple, 264UL, tid - BigPageCount);
   } else {
-    Write(tuple, 264UL, tid - 1, thread_write);
+    Write(tuple, 264UL, tid, thread_write);
   }
 
   if (write_count < 1000) {
@@ -165,7 +165,7 @@ static Status Put(const char *tuple, size_t len){
   #if DEBUG
   if(thread_write % 1000000 == 0) {
     gettimeofday(&t2,NULL);
-    printf("tid = %d ", tid - 1);
+    printf("tid = %d ", tid);
     print_time(t1, t2);
   } 
   #endif
@@ -363,12 +363,11 @@ static Status WriteMemory(const char *tuple, size_t len, uint64_t recovery_count
         sk.insert(std::pair<uint64_t, std::vector<uint64_t>>(user -> id, {recovery_count}));
     }
   }
-  User *user = (User *)tuple;
   // pk_uk.insert(std::pair<uint64_t, My128Str>(user -> id, My128Str(tuple + 8UL)));
   // uk_name.insert(std::pair<uint64_t, My128Str>(*(uint64_t *)(tuple + 8UL), My128Str(tuple + 136UL)));
   // sk_pk.insert(std::pair<uint64_t, uint64_t>(user -> salary, user -> id));
 
-  pk__uk.insert(user -> id, tuple + 8UL);
+  pk__uk.insert(*(uint64_t *)tuple, tuple + 8UL);
   uk__name.insert(*(uint64_t *)(tuple + 8UL), tuple + 136UL);
   // sk__pk.insert(user -> salary, user -> id);
 
@@ -393,7 +392,6 @@ static Status Recovery() {
   if (write_count == 50000000) {
     is_full_recovery = true;
     // ReleaseMemory();
-    // uk__name.stat();
   }
   gettimeofday(&t2,NULL);
   print_time(t1, t2);

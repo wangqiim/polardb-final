@@ -94,7 +94,7 @@ namespace com
 
 const static uint32_t BigPageCount = 23;
 const static uint32_t PageData =  16896;
-const static uint32_t BigPageData = 264 * 1050000;
+const static uint32_t BigPageData = 264 * 1100000;
 
 struct BigPage {
   char data[BigPageData];
@@ -187,6 +187,7 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
         bigpages[i] = (BigPage *)memoryaddress[i];
         if (is_create) {
           memset(bigpages[i], 0, sizeof(BigPage));
+          msync(bigpages[i], sizeof(BigPage), MS_SYNC);
           bigpages[i] -> offset = 0;
         }       
       } else {
@@ -213,7 +214,7 @@ static void WriteAhead(const char *tuple, size_t len, int tid) {
 
   over_offset[tid] += 264UL;
 }
-static uint64_t normal_offset[MemBlockCount] = {0};
+
 static void Write(const char *tuple, size_t len, int tid, int write_count) {
   if (tid < BigPageCount) {
     BigPage *page = bigpages[tid];
@@ -244,25 +245,24 @@ static void Write(const char *tuple, size_t len, int tid, int write_count) {
 typedef Status (*RecoveryCallBack)(const char *tuple, size_t len, uint64_t recovery_count);
 
 static uint64_t NvmBufferRecover(RecoveryCallBack func) {
-  uint32_t recoveryCount[50];
   uint64_t recovery_sum = 0;
 
   for (uint32_t i = 0; i < BigPageCount; i++) {
-    BigPage *page = (BigPage *)memoryaddress[i];
+    BigPage *page = bigpages[i];
     u_int32_t need_recovery = page -> offset;
     if (need_recovery == 10000) {
-      need_recovery = 1050000;
+      need_recovery = 1100000;
     }
     for (uint32_t j = 0; j < need_recovery; j++) {
       func(page->data + (j * 264UL), 264UL, recovery_sum++);
     }      
   }
 
-  for (uint32_t i = BigPageCount; i < 50; i++) {
+  for (uint32_t i = BigPageCount; i < MemBlockCount; i++) {
     Page *smallPage = pages[i];
 
     if (smallPage->offset == 10000) {
-      if (i < 46) smallPage->offset = 950000;
+      if (i < 46) smallPage->offset = 900000;
       else smallPage->offset = 1000000;
     }
 
