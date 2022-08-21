@@ -258,7 +258,7 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
   for (uint32_t i = BigPageCount; i < MemBlockCount; i++) {
     Page *smallPage = pages[i];
     if (smallPage->offset == 10000) {
-      if (i < 46) smallPage->offset = 935000;
+      if (i < 46) smallPage->offset = 925000;
       else smallPage->offset = 1000000;
     }
 
