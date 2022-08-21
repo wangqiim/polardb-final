@@ -187,7 +187,7 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
         bigpages[i] = (BigPage *)memoryaddress[i];
         if (is_create) {
           memset(bigpages[i], 0, sizeof(BigPage));
-          msync(bigpages[i], sizeof(BigPage), MS_SYNC);
+          // msync(bigpages[i], sizeof(BigPage), MS_SYNC);
           bigpages[i] -> offset = 0;
         }       
       } else {
