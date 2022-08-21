@@ -142,7 +142,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 static std::atomic<int> getTid(0);
 
 static bool is_need_write = false;
-static uint32_t over_count = 920000;
+static uint32_t over_count = 930000;
 
 static Status Put(const char *tuple, size_t len){
   static thread_local int tid = getTid++;
