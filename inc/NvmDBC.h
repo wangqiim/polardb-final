@@ -205,7 +205,6 @@ static Status Get(int32_t select_column,
           printf("%u-",data[i]);
         printf("%u\n",data[127]);
       }
-      getCount++;
       return 1;
     }
 
