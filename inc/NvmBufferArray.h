@@ -92,8 +92,8 @@ namespace com
 }
 
 const static uint32_t BigPageCount = 23;
-const static uint32_t PageData =  16640U;
-const static uint32_t BigPageData = 260UL * 1060000;
+const static uint32_t PageData =  16512UL;
+const static uint32_t BigPageData = 258UL * 1060000;
 
 struct BigPage {
   char data[BigPageData];
@@ -160,7 +160,7 @@ static void initNvmBuffer(const char* aep_dir, const char* disk_dir) {
   for (uint32_t i = 0; i < MemBlockCount; i++) {
       mem_path[i] = base_disk + "disk"+ std::to_string(i) + ".txt";
       //BigPage不需要写PMEM
-      if (i < BigPageCount) {mmap_size = BigPageData + 16; over_offset[i] = 1000000UL * 260UL;  }
+      if (i < BigPageCount) {mmap_size = BigPageData + 16; over_offset[i] = 1000000UL * 258UL;  }
       else mmap_size = PageData + 24;
 
       bool is_create = false;
@@ -206,28 +206,28 @@ pthread_mutex_t mem_mtx[12];
 static void WriteAhead(const char *tuple, size_t len, int tid) {
   BigPage *page = bigpages[tid];
   com::xmemcopy<136>::copy(page->data + (over_offset[tid]), tuple);
-  com::xmemcopy<124>::copy(page->data + (over_offset[tid] + 136UL), tuple + 140UL);
-  over_offset[tid] += 260UL;
+  com::xmemcopy<122>::copy(page->data + (over_offset[tid] + 136UL), tuple + 142UL);
+  over_offset[tid] += 258UL;
 }
 
 static void Write(const char *tuple, size_t len, int tid, int write_count) {
   if (tid < BigPageCount) {
     BigPage *page = bigpages[tid];
-    uint64_t offset = write_count * 260UL;
+    uint64_t offset = write_count * 258UL;
     com::xmemcopy<136>::copy(page->data + (offset), tuple);
-    com::xmemcopy<124>::copy(page->data + (offset + 136UL), tuple + 140UL);
+    com::xmemcopy<122>::copy(page->data + (offset + 136UL), tuple + 142UL);
     if(write_count < 10000) page -> offset = write_count + 1;
   } else {
     Page *page = pages[tid];
-    uint64_t offset = (write_count % 64) * 260UL;
+    uint64_t offset = (write_count % 64) * 258UL;
     com::xmemcopy<136>::copy(page->data + (offset), tuple);
-    com::xmemcopy<124>::copy(page->data + (offset + 136UL), tuple + 140UL);
+    com::xmemcopy<122>::copy(page->data + (offset + 136UL), tuple + 142UL);
     if(write_count < 10000) page -> offset = write_count + 1;
     if ((write_count + 1) % 64 == 0) {
       // pthread_mutex_lock(&mem_mtx[tid % 6]);
       // pmem_memcpy(pmemaddress[tid] + PageData * page -> is_drty, page -> data, PageData, PMEM_F_MEM_NODRAIN|PMEM_F_MEM_NONTEMPORAL|PMEM_F_MEM_WC);
-      pmem_memcpy_nodrain(pmemaddress[tid] + (write_count - 63) * 260UL, page->data, PageData);
-      pmem_drain();
+      pmem_memcpy_nodrain(pmemaddress[tid] + (write_count - 63) * 258UL, page->data, PageData);
+      // pmem_drain();
       // pthread_mutex_unlock(&mem_mtx[tid % 6]);
     }
   }
@@ -241,25 +241,22 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
   for (uint32_t i = 0; i < BigPageCount; i++) {
     BigPage *page = bigpages[i];
     uint32_t need_recovery = page -> offset;
-    std::cout << need_recovery << std::endl;
     if (need_recovery == 10000) {
       need_recovery = 1060000;
       page -> offset = 1060000;
     }
     for (uint32_t j = 0; j < need_recovery; j++) {
       User user;
-      memcpy(&user.id, page->data + (j * 260UL), 8);
-      memcpy(user.user_id, page->data + (j * 260UL) + 8, 128);
-      memcpy(user.name, page->data + (j * 260UL) + 8, 4);
-      memcpy(user.name + 4, page->data + (j * 260UL) + 136, 124);
+      memcpy(&user.id, page->data + (j * 258UL), 8);
+      memcpy(user.user_id, page->data + (j * 258UL) + 8, 128);
+      memcpy(user.name, page->data + (j * 258UL) + 8, 6);
+      memcpy(user.name + 6, page->data + (j * 258UL) + 136, 122);
       func((char *)&user, 264UL, recovery_sum++);
     }      
-    std::cout << i <<  " "  << recovery_sum << std::endl;
   }
 
   for (uint32_t i = BigPageCount; i < MemBlockCount; i++) {
     Page *smallPage = pages[i];
-    std::cout << i << std::endl;
     if (smallPage->offset == 10000) {
       if (i < 46) smallPage->offset = 940000;
       else smallPage->offset = 1000000;
@@ -267,10 +264,10 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
 
     for (int j = 0; j < smallPage -> offset % 64; j++) {
       User user;
-      memcpy(&user.id, smallPage->data + (j * 260UL), 8);
-      memcpy(user.user_id, smallPage->data + (j * 260UL) + 8U, 128);
-      memcpy(user.name, smallPage->data + (j * 260UL) + 8U, 4);
-      memcpy(user.name + 4U, smallPage->data + (j * 260UL) + 136U, 124);
+      memcpy(&user.id, smallPage->data + (j * 258UL), 8);
+      memcpy(user.user_id, smallPage->data + (j * 258UL) + 8U, 128);
+      memcpy(user.name, smallPage->data + (j * 258UL) + 8U, 6);
+      memcpy(user.name + 6U, smallPage->data + (j * 258UL) + 136U, 122);
       func((char *)&user, 264UL, recovery_sum++);
     }
 
@@ -279,22 +276,22 @@ static uint64_t NvmBufferRecover(RecoveryCallBack func) {
       flushCount -= 1;
       for (int j = 0; j < 64; j++) {
         User user;
-        memcpy(&user.id, smallPage->data + (j * 260UL), 8);
-        memcpy(user.user_id, smallPage->data + (j * 260UL) + 8U, 128);
-        memcpy(user.name, smallPage->data + (j * 260UL) + 8U, 4);
-        memcpy(user.name + 4U, smallPage->data + (j * 260UL) + 136U, 124);
+        memcpy(&user.id, smallPage->data + (j * 258UL), 8);
+        memcpy(user.user_id, smallPage->data + (j * 258UL) + 8U, 128);
+        memcpy(user.name, smallPage->data + (j * 258UL) + 8U, 6);
+        memcpy(user.name + 6U, smallPage->data + (j * 258UL) + 136U, 122);
         func((char*)&user, 264UL, recovery_sum++);
       }
-      pmem_memcpy_nodrain(pmemaddress[i] + (smallPage -> offset - 64) * 260UL, smallPage->data, PageData);
+      pmem_memcpy_nodrain(pmemaddress[i] + (smallPage -> offset - 64) * 258UL, smallPage->data, PageData);
     }
     char *pmemPage = pmemaddress[i];
     for (uint32_t j = 0; j < flushCount; j++) {
       for (uint32_t k = 0; k < 64; k++) {
           User user;
-          memcpy(&user.id, pmemPage + (j * 64 + k) * 260UL, 8);
-          memcpy(user.user_id, pmemPage + (j * 64 + k) * 260UL + 8U, 128);
-          memcpy(user.name, pmemPage + (j * 64 + k) * 260UL + 8U, 4);
-          memcpy(user.name + 4U, pmemPage + (j * 64 + k) * 260UL + 136U, 124);
+          memcpy(&user.id, pmemPage + (j * 64 + k) * 258UL, 8);
+          memcpy(user.user_id, pmemPage + (j * 64 + k) * 258UL + 8U, 128);
+          memcpy(user.name, pmemPage + (j * 64 + k) * 258UL + 8U, 6);
+          memcpy(user.name + 6U, pmemPage + (j * 64 + k) * 258UL + 136U, 122);
           func((char *)&user, 264UL, recovery_sum++);
       }
     }
