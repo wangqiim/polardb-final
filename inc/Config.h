@@ -6,9 +6,9 @@
 //表空间大小
 const int TABLE_SIZE = 50000005;
 //哈希索引分块
-const int HASH_MAP_COUNT = 54;
+const int HASH_MAP_COUNT = 50;
 //NMV文件数
-const int PMEM_FILE_COUNT = 54;
+const int PMEM_FILE_COUNT = 50;
 //NVM文件空间
 const unsigned long PMEM_SIZE = (1UL << 34);
 
