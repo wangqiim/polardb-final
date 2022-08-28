@@ -25,20 +25,21 @@ static void Put(const char *tuple, size_t len){
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
+    if (posArray.size() > 0){
+      for (uint32_t pos : posArray) {
+        readColumFromPos(select_column, pos, res);
+        if(select_column == Id || select_column == Salary) res += 8;
+        if(select_column == Userid || select_column == Name) res += 128;
+      }
+      if (where_column != Salary) return posArray.size();
+    }
     if ((posArray.size() == 0 || where_column == Salary) && is_local) {
       Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len);
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
       if(select_column == Userid || select_column == Name) dataSize = result.size * 128;      
       memcpy(res, result.data.c_str(), dataSize);
-      return result.size; 
-    } else if (posArray.size() > 0){
-      for (uint32_t pos : posArray) {
-        readColumFromPos(select_column, pos, res);
-        if(select_column == Id || select_column == Salary) res += 8;
-        if(select_column == Userid || select_column == Name) res += 128;
-      }
-      return posArray.size();
+      return result.size + posArray.size(); 
     }
     return 0;
 }
