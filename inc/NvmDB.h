@@ -25,7 +25,7 @@ static void Put(const char *tuple, size_t len){
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
-    if (posArray.size() == 0 && is_local) {
+    if ((posArray.size() == 0 || where_column == Salary) && is_local) {
       Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len);
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
