@@ -1,4 +1,4 @@
-#include "../inc/tools/BlizzardHashMap.h"
+#include "../inc/tools/HashMap/BlizzardHash/BlizzardHashMap.h"
 #include <stdlib.h>
 #include <assert.h>
 

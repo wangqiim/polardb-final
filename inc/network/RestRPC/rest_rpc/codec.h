@@ -1,7 +1,7 @@
 #ifndef REST_RPC_CODEC_H_
 #define REST_RPC_CODEC_H_
 
-#include <msgpack.hpp>
+#include "msgpack/msgpack.hpp"
 
 namespace rest_rpc {
 namespace rpc_service {

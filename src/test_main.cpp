@@ -95,7 +95,7 @@ bool test_is_ok(void *ctx) {
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
     int record_count = 0;
     record_count = engine_read(ctx, Salary, Id, &user.id, 8, res);
-    std::cout << "查询 Salary = " << *(int64_t *)(res) << " where id = " <<  user.id << " Count = " << record_count << std::endl;
+    std::cout << "查询 Salary = " << *(uint64_t *)(res) << " where id = " <<  user.id << " Count = " << record_count << std::endl;
     // if(record_count != 1) {
     //     return false;
     // }
@@ -190,7 +190,9 @@ void* write_100M (void* ctx) {
 
 int main()
 {
-    void* ctx = engine_init(nullptr, nullptr, 0, "/mnt/pmem0", "./");
+    char *myIp = "127.0.0.1";
+    char *server[2] = {"127.0.0.2:8080","127.0.0.3:8080"};
+    void* ctx = engine_init(myIp, server, 2, "/mnt/pmem0/pmemData", "./");
     struct timeval t1,t2;
     double timeuse;
     gettimeofday(&t1,NULL);

@@ -10,7 +10,7 @@ void engine_write(void *ctx, const void *data, size_t len) {
 
 size_t engine_read( void *ctx, int32_t select_column,
     int32_t where_column, const void *column_key, size_t column_key_len, void *res) {
-    return Get(select_column, where_column, column_key, column_key_len, res);  
+    return Get(select_column, where_column, column_key, column_key_len, res, true);  
 }
 
 void* engine_init(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
@@ -18,7 +18,6 @@ void* engine_init(const char* host_info, const char* const* peer_host_info, size
     std::cout << "host_info:" << host_info << std::endl;
     std::cout << "get sys pmem dir:" << aep_dir << std::endl;
     initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
-    std::cout << "recover succedd" << std::endl;
 
     return nullptr;
 }

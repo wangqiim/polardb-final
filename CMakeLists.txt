@@ -9,10 +9,14 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 
+add_definitions(-DMSGPACK_NO_BOOST)
+
 file(GLOB_RECURSE native_srcs src/*.cpp)
 
 # generate .so file
-include_directories(inc)
+include_directories(inc
+            "./inc/network/RestRPC/thirdparty/"
+            "./inc/network/RestRPC/thirdparty/asio")
 
 add_library(interface SHARED ${native_srcs} )
 
