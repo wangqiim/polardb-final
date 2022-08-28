@@ -17,14 +17,17 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len);
 
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
-
   std::string s = std::string(host_info);
   int index = s.find(":");
   std::string port = s.substr(index + 1, s.length());
+  std::cout << "host_info: port: " << stoi(port) << std::endl;
+  for (int i = 0; i < peer_host_info_num; i++) {
+    std::cout << "peer host info " << i << " " << peer_host_info[i] << std::endl;
+  }
   rpc_server server(stoi(port), std::thread::hardware_concurrency());
   server.register_handler("remoteGet", remoteGet);
   server.run();
-
+  sleep(5);
   for (int i = 0; i < peer_host_info_num; i++) {
     std::string s = std::string(peer_host_info[i]);
     std::string ip, port;
@@ -33,10 +36,14 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     port = s.substr(flag + 1, s.length());
     std::cout << "Server " << i << " ip:" << ip << " port:" << port << std::endl;
     bool r = clients[i].connect(ip, stoi(port));
-    while(!r) {
-      r = clients[i].connect(ip, stoi(port));
+    // while(!r) {
+    //   r = clients[i].connect(ip, stoi(port));
+    // }
+    if (r) {
+      std::cout << "Success Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+    } else {
+      std::cout << "Failed Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
     }
-    std::cout << "Success Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
   }
 
 }

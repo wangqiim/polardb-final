@@ -15,8 +15,6 @@ size_t engine_read( void *ctx, int32_t select_column,
 
 void* engine_init(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                   const char* aep_dir, const char* disk_dir) {
-    std::cout << "host_info:" << host_info << std::endl;
-    std::cout << "get sys pmem dir:" << aep_dir << std::endl;
     initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
 
     return nullptr;

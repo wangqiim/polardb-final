@@ -31,7 +31,7 @@ static inline void print_time(struct timeval t1, struct timeval t2) {
 static void recovery();
 
 static void initStore(const char* aep_dir, const char* disk_dir) {
-
+  std::cout << "get sys pmem dir:" << aep_dir << std::endl;
   std::string base_path = std::string(aep_dir);
   if(base_path[base_path.length() - 1] != '/') {
     base_path = base_path + "/";
