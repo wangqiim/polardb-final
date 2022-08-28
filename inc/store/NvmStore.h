@@ -50,6 +50,8 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
     }
     if (is_create) {
       pmem_memset_nodrain(PBM[i].address, 0, PMEM_SIZE / PMEM_FILE_COUNT);  
+      uint64_t flag = 0xffffffffffffffff;
+      pmem_memcpy_nodrain(PBM[i].address + PBM[i].offset, &flag, 8);
     }
   }
   std::cout << "Init End" << std::endl;
@@ -70,28 +72,28 @@ static void writeTuple(const char *tuple, size_t len, uint8_t tid) {
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   uint8_t tid = pos / PER_THREAD_MAX_WRITE;
   uint64_t offset = pos % PER_THREAD_MAX_WRITE;
-  User *user = (User *)(PBM[tid].address + offset * 272UL);
+  char *user = PBM[tid].address + offset * 272UL;
   if (select_column == Id) {
-    memcpy(res, &user->id, 8);
+    memcpy(res, user, 8);
     return;
   }
   if (select_column == Userid) {
-    memcpy(res, user->user_id, 128);
+    memcpy(res, user + 8, 128);
     return;
   }
   if (select_column == Name) {
-    memcpy(res, user->name, 128);
+    memcpy(res, user + 136, 128);
     return;
   }
   if (select_column == Salary) {
-    memcpy(res, &user->salary, 8);
+    memcpy(res, user + 264, 8);
     return;    
   }
 }
 
 static void recovery() {
   for (int i = 0; i < PMEM_FILE_COUNT; i++) {
-    while (*(uint64_t *)(PBM[i].address + PBM[i].offset + 272UL) != 0) {
+    while (*(uint64_t *)(PBM[i].address + PBM[i].offset) != 0xffffffffffffffff &&  PBM[i].offset/272 < PER_THREAD_MAX_WRITE) {
       insert(PBM[i].address + PBM[i].offset, 272UL, i);
       PBM[i].offset += 272UL;
     }
