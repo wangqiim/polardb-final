@@ -67,7 +67,8 @@ static Package clientRemoteGet(int32_t select_column,
   for (int i = 0; i < 3; i++) {
     try {
       std::cout << "Get Select " << select_column << " where " << where_column << " from " << i << std::endl;
-      Package package = clients[i].call<Package>("remoteGet", select_column, where_column, std::string((char *)column_key, column_key_len), column_key_len);
+      std::string key = std::string((char *)column_key, column_key_len);
+      Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
       result.size += package.size;
       result.data += package.data;
     } catch (const std::exception &e) {

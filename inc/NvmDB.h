@@ -6,8 +6,8 @@
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
-    initGroup(host_info, peer_host_info, peer_host_info_num);
     initStore(aep_dir, disk_dir);
+    initGroup(host_info, peer_host_info, peer_host_info_num);
 }
 
 static std::atomic<uint8_t> putTid(0);
@@ -48,7 +48,12 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len) {
   char *res = new char[2000 * 8];
   Package packge;
-  std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << column_key << std::endl;
+  if (where_column == Salary || where_column == Id) {
+    uint64_t key = *(uint64_t *)(column_key.c_str());
+    std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << key << std::endl;
+  } else {
+    std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << column_key << std::endl;
+  }
   packge.size = Get(select_column, where_column, column_key.c_str(), column_key_len, res, false);
   if (packge.size > 0) {
     int dataSize = 0;
