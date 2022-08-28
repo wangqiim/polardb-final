@@ -47,12 +47,14 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len) {
   char *res = new char[2000 * 8];
   Package packge;
+  std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << column_key << std::endl;
   packge.size = Get(select_column, where_column, column_key.c_str(), column_key_len, res, false);
   if (packge.size > 0) {
     int dataSize = 0;
     if(select_column == Id || select_column == Salary) dataSize = packge.size * 8;
     if(select_column == Userid || select_column == Name) dataSize = packge.size * 128;
     packge.data = std::string(res, dataSize);
+    std::cout << "Result Size = " << packge.size << "Value = " << packge.data << std::endl;
   }
   return packge;
 }

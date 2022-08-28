@@ -9,8 +9,8 @@ rpc_client clients[3];
 rpc_server *server;
 
 struct Package {
-  uint32_t size;
-  std::string data;
+  uint32_t size = 0;
+  std::string data = "";
   MSGPACK_DEFINE(size, data);
 };
 
@@ -67,6 +67,7 @@ static Package clientRemoteGet(int32_t select_column,
   for (int i = 0; i < 3; i++) {
     try {
       Package package = clients[i].call<Package>("remoteGet", select_column, where_column, std::string((char *)column_key, column_key_len), column_key_len);
+      std::cout << "Get Select " << select_column << " where " << where_column << " from " << i << std::endl;
       result.size += package.size;
       result.data += package.data;
     } catch (const std::exception &e) {
