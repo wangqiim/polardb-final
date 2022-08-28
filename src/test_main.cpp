@@ -190,7 +190,7 @@ void* write_100M (void* ctx) {
 
 int main()
 {
-    char *myIp = "127.0.0.1";
+    char *myIp = "127.0.0.1:9000";
     char *server[2] = {"127.0.0.2:8080","127.0.0.3:8080"};
     void* ctx = engine_init(myIp, server, 2, "/mnt/pmem0/pmemData", "./");
     struct timeval t1,t2;
