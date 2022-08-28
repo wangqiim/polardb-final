@@ -6,7 +6,7 @@
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
-    // initGroup(host_info, peer_host_info, peer_host_info_num);
+    initGroup(host_info, peer_host_info, peer_host_info_num);
     initStore(aep_dir, disk_dir);
 }
 
