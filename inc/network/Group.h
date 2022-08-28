@@ -38,26 +38,26 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   int portInt = stoi(port);
   int ret = pthread_create(&serverId, NULL, runServer, &portInt);
 
-  for (int i = 0; i < peer_host_info_num; i++) {
-    std::string s = std::string(peer_host_info[i]);
-    std::string ip, port;
-    int flag = s.find(":");
-    ip = s.substr(0,flag);
-    port = s.substr(flag + 1, s.length());
-    std::cout << "Server " << i << " ip:" << ip << " port:" << port << std::endl;
-    clients[i].enable_auto_reconnect(); // automatic reconnect
-    clients[i].enable_auto_heartbeat(); // automatic heartbeat
-    bool r = clients[i].connect(ip, stoi(port));
-    while (true) {
-      if (clients[i].has_connected()) {
-        std::cout << "Success Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
-        break;
-      } else {
-       std::cout << "Failed Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
+  // for (int i = 0; i < peer_host_info_num; i++) {
+  //   std::string s = std::string(peer_host_info[i]);
+  //   std::string ip, port;
+  //   int flag = s.find(":");
+  //   ip = s.substr(0,flag);
+  //   port = s.substr(flag + 1, s.length());
+  //   std::cout << "Server " << i << " ip:" << ip << " port:" << port << std::endl;
+  //   clients[i].enable_auto_reconnect(); // automatic reconnect
+  //   clients[i].enable_auto_heartbeat(); // automatic heartbeat
+  //   bool r = clients[i].connect(ip, stoi(port));
+  //   while (true) {
+  //     if (clients[i].has_connected()) {
+  //       std::cout << "Success Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+  //       break;
+  //     } else {
+  //      std::cout << "Failed Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+  //     }
+  //     std::this_thread::sleep_for(std::chrono::seconds(1));
+  //   }
+  // }
 
 }
 
@@ -66,8 +66,8 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   for (int i = 0; i < 3; i++) {
     try {
-      Package package = clients[i].call<Package>("remoteGet", select_column, where_column, std::string((char *)column_key, column_key_len), column_key_len);
       std::cout << "Get Select " << select_column << " where " << where_column << " from " << i << std::endl;
+      Package package = clients[i].call<Package>("remoteGet", select_column, where_column, std::string((char *)column_key, column_key_len), column_key_len);
       result.size += package.size;
       result.data += package.data;
     } catch (const std::exception &e) {

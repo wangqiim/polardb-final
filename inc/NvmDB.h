@@ -32,7 +32,7 @@ static size_t Get(int32_t select_column,
       if(select_column == Userid || select_column == Name) dataSize = result.size * 128;      
       memcpy(res, result.data.c_str(), dataSize);
       return result.size; 
-    } else {
+    } else if (posArray.size() > 0){
       for (uint32_t pos : posArray) {
         readColumFromPos(select_column, pos, res);
         if(select_column == Id || select_column == Salary) res += 8;

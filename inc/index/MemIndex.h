@@ -69,7 +69,6 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
         }
       }
     }
-    return result;
   }
-  return {0};
+  return result;
 }
