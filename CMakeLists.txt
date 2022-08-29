@@ -11,6 +11,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 
 add_definitions(-DMSGPACK_NO_BOOST)
 
+add_subdirectory(third_party)
+include_directories(third_party/spdlog/include)
+
 file(GLOB_RECURSE native_srcs src/*.cpp)
 
 # generate .so file
