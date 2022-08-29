@@ -2,6 +2,8 @@
 #include <cstdio>
 #include <string>
 #include "./RestRPC/rest_rpc.hpp"
+#include "spdlog/spdlog.h"
+
 using namespace rest_rpc;
 using namespace rest_rpc::rpc_service;
 
@@ -37,7 +39,7 @@ void *runServer(void *input) {
   server -> register_handler("remoteGet", remoteGet);
   server -> register_handler("serverSyncInit", serverSyncInit);
   server -> register_handler("serverSyncDeinit", serverSyncDeinit);
-  std::cout << "Success Run port: " << port << std::endl;
+  spdlog::info("Local rpc_Server Success Run port: {}", port);
   server -> run();
 }
 
@@ -47,7 +49,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   int index = s.find(":");
   std::string port = s.substr(index + 1, s.length());
   for (int i = 0; i < peer_host_info_num; i++) {
-    std::cout << "peer host info " << i << " " << peer_host_info[i] << std::endl;
+    spdlog::info("peer host info {}, {}", i, peer_host_info[i]);
   }
 
   pthread_t serverId;
@@ -60,16 +62,16 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     int flag = s.find(":");
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
-    std::cout << "Server " << i << " ip:" << ip << " port:" << port << std::endl;
+    spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
     clients[i].enable_auto_reconnect(); // automatic reconnect
     clients[i].enable_auto_heartbeat(); // automatic heartbeat
     bool r = clients[i].connect(ip, stoi(port));
     while (true) {
       if (clients[i].has_connected()) {
-        std::cout << "Success Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+        spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
         break;
       } else {
-       std::cout << "Failed Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+        spdlog::info("Failed Connect Server  {}, ip: {}, port: {}", i, ip, port);
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -81,7 +83,7 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   for (int i = 0; i < 3; i++) {
     try {
-      std::cout << "Get Select " << select_column << " where " << where_column << " from " << i << std::endl;
+      spdlog::info("Get Select {}, where: {}, from {}", select_column, where_column, i);
       std::string key = std::string((char *)column_key, column_key_len);
       Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
       result.size += package.size;

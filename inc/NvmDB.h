@@ -3,12 +3,13 @@
 #include <cstdio>
 #include "./network/Group.h"
 #include "./store/NvmStore.h"
+#include "spdlog/spdlog.h"
 
 bool is_deinit;
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
-    std::cout << "NvmDB Init Begin" << std::endl;
+    spdlog::info("[initNvmDB] NvmDB Init Begin");
     is_deinit = false;
     initIndex();
     initStore(aep_dir, disk_dir);
@@ -17,17 +18,17 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     for (int i = 0; i < peer_host_info_num; i++) {
       while (true) {
         if (clients[i].call<bool>("serverSyncInit")) {
-          std::cout << "Server " << i << "init Success" << std::endl;
+          spdlog::info("Server {} init Success", i);
           break;
         } else {
-          std::cout << "Server " << i << "init time out" << std::endl;
+          spdlog::info("Server {} init time out", i);
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     }
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    std::cout << "NvmDB Init END" << std::endl;
+    spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
 static std::atomic<uint8_t> putTid(0);
@@ -38,7 +39,7 @@ static void Put(const char *tuple, size_t len){
     insert(tuple, len, tid);
     write_count++;
     if (write_count % 1000000 == 0) {
-      std::cout << "thread " << tid <<  " write " << write_count << std::endl;
+      spdlog::debug("thread {} write {}", tid, write_count);
     }
 }
 
@@ -70,9 +71,9 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
   Package packge;
   if (where_column == Salary || where_column == Id) {
     uint64_t key = *(uint64_t *)(column_key.c_str());
-    std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << key << std::endl;
+    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, key);
   } else {
-    std::cout << "Remote Get Select " << select_column << " where " << where_column << " key " << column_key << std::endl;
+    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, column_key);
   }
   packge.size = Get(select_column, where_column, column_key.c_str(), column_key_len, res, false);
   if (packge.size > 0) {
@@ -81,9 +82,9 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
     if(select_column == Userid || select_column == Name) dataSize = packge.size * 128;
     packge.data = std::string(res, dataSize);
     if (select_column == Salary || select_column == Id) {
-      std::cout << "Result Size = " << packge.size << " Value = " << *(uint64_t *)packge.data.c_str() << std::endl;
+      spdlog::debug("Result Size = {}, Value = {}", packge.size, *(uint64_t *)packge.data.c_str());
     } else {
-      std::cout << "Result Size = " << packge.size << " Value = " << packge.data << std::endl;
+      spdlog::debug("Result Size = {}, Value = {}", packge.size, packge.data);
     }
   }
   return packge;
@@ -91,20 +92,20 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
 
 
 static void deinitNvmDB() {
-  std::cout << "NvmDB ready to deinit" << std::endl;
+  spdlog::info("NvmDB ready to deinit");
   is_deinit = true;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
       if (clients[i].call<bool>("serverSyncDeinit")) {
-        std::cout << "Server " << i << "ready to deinit" << std::endl;
+        spdlog::info("Server {} ready to deinit", i);
         break;
       } else {
-        std::cout << "Server " << i << "not ready to deinit" << std::endl;
+        spdlog::info("Server {} not ready to deinit", i);
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
-  std::cout << "NvmDB deinit done" << std::endl;
+  spdlog::info("NvmDB deinit done");
 }

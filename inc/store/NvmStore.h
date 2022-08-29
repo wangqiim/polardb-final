@@ -24,14 +24,14 @@ struct PmemBlockMeta {
 }PBM[50];
 
 static inline void print_time(struct timeval t1, struct timeval t2) {
-    double timeuse = (t2.tv_sec - t1.tv_sec) + (double)(t2.tv_usec - t1.tv_usec)/1000000.0;
-    std::cout<<"time = "<< timeuse << "s" << std::endl;  //输出时间（单位：ｓ）
+  double timeuse = (t2.tv_sec - t1.tv_sec) + (double)(t2.tv_usec - t1.tv_usec)/1000000.0;
+  spdlog::info("time = {}s", timeuse);
 }
 
 static void recovery();
 
 static void initStore(const char* aep_dir, const char* disk_dir) {
-  std::cout << "get sys pmem dir:" << aep_dir << std::endl;
+  spdlog::info("get sys pmem dir: {}", aep_dir);
   std::string base_path = std::string(aep_dir);
   if(base_path[base_path.length() - 1] != '/') {
     base_path = base_path + "/";
@@ -55,7 +55,7 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
     }
   }
   recovery();
-  std::cout << "Store Init End" << std::endl;
+  spdlog::info("Store Init End");
 }
 
 
@@ -96,8 +96,8 @@ static void recovery() {
       insert(PBM[i].address + PBM[i].offset, 272UL, i);
       PBM[i].offset += 272UL;
     }
-    std::cout << "PMEM_" << i << " recovery " <<  PBM[i].offset/272 << " tuples" << std::endl;
+    spdlog::info("PMEM_{} recovery {} tuples", i, PBM[i].offset/272);
   }
-  std::cout << "RECOVERY END" << std::endl;
+  spdlog::info("RECOVERY END");
 }
 
