@@ -29,14 +29,14 @@ static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 static void initIndex() {
-  std::cout << "Init Index Begin" << std::endl;
+  spdlog::info("Init Index Begin");
   memset(thread_pos, 0, sizeof(thread_pos));
   for (int i = 0; i < HASH_MAP_COUNT; i++) {
     pk[i].reserve(4000000);
     uk[i].reserve(4000000);
     sk[i].reserve(4000000);
   }
-  std::cout << "Init Index End" << std::endl;
+  spdlog::info("Init Index End");
 }
 
 static void insert(const char *tuple, size_t len, uint8_t tid) {
