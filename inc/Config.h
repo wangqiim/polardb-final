@@ -6,7 +6,7 @@
 //表空间大小
 const int TABLE_SIZE = 50000005;
 
-const int PER_THREAD_MAX_WRITE = 20000000;
+const int PER_THREAD_MAX_WRITE = 200000000 / 50;
 //哈希索引分块
 const int HASH_MAP_COUNT = 50;
 //NMV文件数
