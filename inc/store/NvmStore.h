@@ -50,9 +50,8 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
     }
     if (is_create) {
       pmem_memset_nodrain(PBM[i].address, 0, PMEM_SIZE / PMEM_FILE_COUNT);  
-      uint64_t flag = 0xffffffffffffffff;
-      pmem_memcpy_nodrain(PBM[i].address + PBM[i].offset, &flag, 8);
     }
+    PBM[i].address += 4;
   }
   recovery();
   spdlog::info("Store Init End");
@@ -60,10 +59,10 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
 
 
 
-static void writeTuple(const char *tuple, size_t len, uint8_t tid) {
+static void writeTuple(const char *tuple, size_t len, uint8_t tid, uint32_t pos) {
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple, len);
-  uint64_t flag = 0xffffffffffffffff;
-  pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset + len, &flag, 8);
+  pos++;
+  pmem_memcpy_nodrain(PBM[tid].address - 4, &pos, 4);
   pmem_drain();
   PBM[tid].offset += len;
 }
@@ -92,8 +91,12 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
 
 static void recovery() {
   for (int i = 0; i < PMEM_FILE_COUNT; i++) {
-    while (*(uint64_t *)(PBM[i].address + PBM[i].offset) != 0xffffffffffffffff &&  PBM[i].offset/272 < PER_THREAD_MAX_WRITE) {
-      insert(PBM[i].address + PBM[i].offset, 272UL, 0);
+    // while (*(uint64_t *)(PBM[i].address + PBM[i].offset) != 0xffffffffffffffff &&  PBM[i].offset/272 < PER_THREAD_MAX_WRITE) {
+    //   insert(PBM[i].address + PBM[i].offset, 272UL, 0);
+    //   PBM[i].offset += 272UL;
+    // }
+    for (int j = 0; j < *(uint32_t *)(PBM[i].address - 4); j++) {
+      insert(PBM[i].address + PBM[i].offset, 272UL, i);
       PBM[i].offset += 272UL;
     }
     spdlog::info("PMEM_{} recovery {} tuples", i, PBM[i].offset/272);
