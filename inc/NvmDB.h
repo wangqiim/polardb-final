@@ -26,7 +26,6 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(10));
 
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
@@ -105,7 +104,7 @@ static void deinitNvmDB() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(4));
 
   spdlog::info("NvmDB deinit done");
 }
