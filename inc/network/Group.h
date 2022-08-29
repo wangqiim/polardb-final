@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <string>
 #include "./RestRPC/rest_rpc.hpp"
+#include "Config.h"
 #include "spdlog/spdlog.h"
 
 using namespace rest_rpc;
@@ -10,7 +11,7 @@ using namespace rest_rpc::rpc_service;
 rpc_client clients[3];
 rpc_server *server;
 
-extern bool is_deinit;
+bool group_is_deinit;
 
 struct Package {
   uint32_t size = 0;
@@ -30,7 +31,7 @@ static bool serverSyncInit(rpc_conn conn) {
 }
 
 static bool serverSyncDeinit(rpc_conn conn) {
-  return is_deinit;
+  return group_is_deinit;
 }
 
 void *runServer(void *input) {
@@ -51,6 +52,8 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   for (int i = 0; i < peer_host_info_num; i++) {
     spdlog::info("peer host info {}, {}", i, peer_host_info[i]);
   }
+
+  group_is_deinit = false;
 
   pthread_t serverId;
   int portInt = stoi(port);
@@ -76,6 +79,19 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
+
+  for (int i = 0; i < peer_host_info_num; i++) {
+    while (true) {
+      if (clients[i].call<bool>("serverSyncInit")) {
+        spdlog::info("Server {} init Success", i);
+        break;
+      } else {
+        spdlog::info("Server {} init time out", i);
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(10));
 }
 
 static Package clientRemoteGet(int32_t select_column,
@@ -95,3 +111,18 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
+static void deInitGroup() {
+  group_is_deinit = true;
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    while (true) {
+      if (clients[i].call<bool>("serverSyncDeinit")) {
+        spdlog::info("Server {} ready to deinit", i);
+        break;
+      } else {
+        spdlog::info("Server {} not ready to deinit", i);
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(4));
+}

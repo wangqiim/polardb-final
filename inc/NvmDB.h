@@ -5,28 +5,12 @@
 #include "./store/NvmStore.h"
 #include "spdlog/spdlog.h"
 
-bool is_deinit;
-
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
-    is_deinit = false;
     initIndex();
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
-
-    for (int i = 0; i < peer_host_info_num; i++) {
-      while (true) {
-        if (clients[i].call<bool>("serverSyncInit")) {
-          spdlog::info("Server {} init Success", i);
-          break;
-        } else {
-          spdlog::info("Server {} init time out", i);
-        }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-      }
-    }
-
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
@@ -92,19 +76,7 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
 
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
-  is_deinit = true;
-  for (int i = 0; i < PeerHostInfoNum; i++) {
-    while (true) {
-      if (clients[i].call<bool>("serverSyncDeinit")) {
-        spdlog::info("Server {} ready to deinit", i);
-        break;
-      } else {
-        spdlog::info("Server {} not ready to deinit", i);
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-  std::this_thread::sleep_for(std::chrono::seconds(4));
+  deInitGroup();
 
   spdlog::info("NvmDB deinit done");
 }
