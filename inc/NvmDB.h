@@ -66,7 +66,7 @@ static size_t Get(int32_t select_column,
 
 static Package remoteGet(rpc_conn conn, int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len) {
-  char *res = new char[2000 * 8];
+  char res[2000 * 8];
   Package packge;
   if (where_column == Salary || where_column == Id) {
     uint64_t key = *(uint64_t *)(column_key.c_str());
