@@ -67,18 +67,18 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-
-  for (int i = 0; i < peer_host_info_num; i++) {
-    while (true) {
-      if (clients[i].call<bool>("serverSyncInit")) {
-        std::cout << "Server " << i << "init Success" << std::endl;
-        break;
-      } else {
-        std::cout << "Server " << i << "init time out" << std::endl;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
+  sleep(30);
+  // for (int i = 0; i < peer_host_info_num; i++) {
+  //   while (true) {
+  //     if (clients[i].call<bool>("serverSyncInit")) {
+  //       std::cout << "Server " << i << "init Success" << std::endl;
+  //       break;
+  //     } else {
+  //       std::cout << "Server " << i << "init time out" << std::endl;
+  //     }
+  //     std::this_thread::sleep_for(std::chrono::seconds(1));
+  //   }
+  // }
 
 }
 
