@@ -23,10 +23,21 @@ struct UserIdHash {
     }
 };
 
-uint32_t thread_pos[50] = {0};
+uint32_t thread_pos[50];
 static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+
+static void initIndex() {
+  std::cout << "Init Index Begin" << std::endl;
+  memset(thread_pos, 0, sizeof(thread_pos));
+  for (int i = 0; i < HASH_MAP_COUNT; i++) {
+    pk[i].reserve(4000000);
+    uk[i].reserve(4000000);
+    sk[i].reserve(4000000);
+  }
+  std::cout << "Init Index End" << std::endl;
+}
 
 static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
