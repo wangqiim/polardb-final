@@ -99,13 +99,13 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   for (int i = 0; i < 3; i++) {
     try {
-      spdlog::info("Get Select {}, where: {}, from {}", select_column, where_column, i);
+      spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
       std::string key = std::string((char *)column_key, column_key_len);
       Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
       result.size += package.size;
       result.data += package.data;
     } catch (const std::exception &e) {
-      std::cout << e.what() << std::endl;
+      spdlog::debug("Get Error {}", e.what());
     }
   }
   return result;
