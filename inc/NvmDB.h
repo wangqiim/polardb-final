@@ -70,5 +70,5 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
 
 
 static void deinitNvmDB() {
-
+  std::cout << "NvmDB deinit" << std::endl;
 }
