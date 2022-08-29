@@ -4,12 +4,29 @@
 #include "./network/Group.h"
 #include "./store/NvmStore.h"
 
+bool is_deinit;
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     std::cout << "NvmDB Init Begin" << std::endl;
+    is_deinit = false;
     initIndex();
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
+
+    for (int i = 0; i < peer_host_info_num; i++) {
+      while (true) {
+        if (clients[i].call<bool>("serverSyncInit")) {
+          std::cout << "Server " << i << "init Success" << std::endl;
+          break;
+        } else {
+          std::cout << "Server " << i << "init time out" << std::endl;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
     std::cout << "NvmDB Init END" << std::endl;
 }
 
@@ -74,5 +91,20 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
 
 
 static void deinitNvmDB() {
-  std::cout << "NvmDB deinit" << std::endl;
+  std::cout << "NvmDB ready to deinit" << std::endl;
+  is_deinit = true;
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    while (true) {
+      if (clients[i].call<bool>("serverSyncDeinit")) {
+        std::cout << "Server " << i << "ready to deinit" << std::endl;
+        break;
+      } else {
+        std::cout << "Server " << i << "not ready to deinit" << std::endl;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
+  std::cout << "NvmDB deinit done" << std::endl;
 }

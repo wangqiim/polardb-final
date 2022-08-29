@@ -12,7 +12,7 @@ const int HASH_MAP_COUNT = 50;
 //NMV文件数
 const int PMEM_FILE_COUNT = 50;
 //NVM文件空间
-const unsigned long PMEM_SIZE = (1UL << 36);
+const unsigned long PMEM_SIZE = (1UL << 36); // 64G
 
 
 const int WRITEMEM_THREAD = 16;
@@ -22,7 +22,8 @@ const int NVMBLOCK_COUNT = 1;
 const int WRITENVM_THREAD = 2;
 //读NVM线程数
 const int READNVM_THREAD = 2;
-
+//有3个peer
+const int PeerHostInfoNum = 3;
 
 enum Column{Id=0,Userid,Name,Salary};
 

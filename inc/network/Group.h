@@ -8,6 +8,8 @@ using namespace rest_rpc::rpc_service;
 rpc_client clients[3];
 rpc_server *server;
 
+extern bool is_deinit;
+
 struct Package {
   uint32_t size = 0;
   std::string data = "";
@@ -25,11 +27,16 @@ static bool serverSyncInit(rpc_conn conn) {
   return true;
 }
 
+static bool serverSyncDeinit(rpc_conn conn) {
+  return is_deinit;
+}
+
 void *runServer(void *input) {
   int port = *(int *)input;
   server = new rpc_server(port, std::thread::hardware_concurrency());
   server -> register_handler("remoteGet", remoteGet);
   server -> register_handler("serverSyncInit", serverSyncInit);
+  server -> register_handler("serverSyncDeinit", serverSyncDeinit);
   std::cout << "Success Run port: " << port << std::endl;
   server -> run();
 }
@@ -67,19 +74,6 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  sleep(30);
-  // for (int i = 0; i < peer_host_info_num; i++) {
-  //   while (true) {
-  //     if (clients[i].call<bool>("serverSyncInit")) {
-  //       std::cout << "Server " << i << "init Success" << std::endl;
-  //       break;
-  //     } else {
-  //       std::cout << "Server " << i << "init time out" << std::endl;
-  //     }
-  //     std::this_thread::sleep_for(std::chrono::seconds(1));
-  //   }
-  // }
-
 }
 
 static Package clientRemoteGet(int32_t select_column,
