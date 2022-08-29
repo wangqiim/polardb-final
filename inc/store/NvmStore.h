@@ -54,9 +54,8 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
       pmem_memcpy_nodrain(PBM[i].address + PBM[i].offset, &flag, 8);
     }
   }
-  std::cout << "Init End" << std::endl;
   recovery();
-
+  std::cout << "Store Init End" << std::endl;
 }
 
 

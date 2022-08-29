@@ -6,8 +6,10 @@
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
+    std::cout << "NvmDB Init Begin" << std::endl;
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
+    std::cout << "NvmDB Init END" << std::endl;
 }
 
 static std::atomic<uint8_t> putTid(0);

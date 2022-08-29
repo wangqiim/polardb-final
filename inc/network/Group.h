@@ -17,10 +17,19 @@ struct Package {
 static Package remoteGet(rpc_conn conn, int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len);
 
+static bool serverSyncInit(rpc_conn conn) {
+  for (int i = 0; i < 3; i++) {
+    bool isInit = clients[i].has_connected();
+    if (!isInit) return false; 
+  }
+  return true;
+}
+
 void *runServer(void *input) {
   int port = *(int *)input;
   server = new rpc_server(port, std::thread::hardware_concurrency());
   server -> register_handler("remoteGet", remoteGet);
+  server -> register_handler("serverSyncInit", serverSyncInit);
   std::cout << "Success Run port: " << port << std::endl;
   server -> run();
 }
@@ -54,6 +63,18 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         break;
       } else {
        std::cout << "Failed Connect Server " << i << " ip:" << ip << " port:" << port << std::endl;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+
+  for (int i = 0; i < peer_host_info_num; i++) {
+    while (true) {
+      if (clients[i].call<bool>("serverSyncInit")) {
+        std::cout << "Server " << i << "init Success" << std::endl;
+        break;
+      } else {
+        std::cout << "Server " << i << "init time out" << std::endl;
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
