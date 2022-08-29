@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <vector>
-
+#include <unordered_map>
 #include "../tools/HashFunc/xxhash.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 
@@ -19,23 +19,27 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      return rhs.hashCode;
+      return std::hash<uint64_t>{}(rhs.hashCode);
     }
 };
 
 uint32_t thread_pos[50];
-static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+// static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
+// static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+// static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+
+static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
+static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
   memset(thread_pos, 0, sizeof(thread_pos));
-  for (int i = 0; i < HASH_MAP_COUNT; i++) {
-    pk[i].reserve(4000000);
-    uk[i].reserve(4000000);
-    sk[i].reserve(4000000);
-  }
+  // for (int i = 0; i < HASH_MAP_COUNT; i++) {
+  //   pk[i].reserve(4000000);
+  //   uk[i].reserve(4000000);
+  //   sk[i].reserve(4000000);
+  // }
   spdlog::info("Init Index End");
 }
 
