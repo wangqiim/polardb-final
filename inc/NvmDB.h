@@ -44,7 +44,7 @@ static size_t Get(int32_t select_column,
       memcpy(res, result.data.c_str(), dataSize);
       return result.size + posArray.size(); 
     }
-    return 0;
+    return posArray.size();
 }
 
 static Package remoteGet(rpc_conn conn, int32_t select_column,
@@ -63,7 +63,11 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
     if(select_column == Id || select_column == Salary) dataSize = packge.size * 8;
     if(select_column == Userid || select_column == Name) dataSize = packge.size * 128;
     packge.data = std::string(res, dataSize);
-    std::cout << "Result Size = " << packge.size << "Value = " << packge.data << std::endl;
+    if (select_column == Salary || select_column == Id) {
+      std::cout << "Result Size = " << packge.size << " Value = " << *(uint64_t *)packge.data.c_str() << std::endl;
+    } else {
+      std::cout << "Result Size = " << packge.size << " Value = " << packge.data << std::endl;
+    }
   }
   return packge;
 }
