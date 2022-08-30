@@ -112,6 +112,7 @@ static Package clientRemoteGet(int32_t select_column,
         break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
+        clients[i].close();
       }
     }
   }
