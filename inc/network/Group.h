@@ -91,7 +91,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
 static Package clientRemoteGet(int32_t select_column,
