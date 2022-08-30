@@ -11,8 +11,6 @@ using namespace rest_rpc::rpc_service;
 rpc_client clients[3];
 rpc_server *server;
 
-
-bool server_is_connect[3];
 bool group_is_deinit;
 
 struct Package {
@@ -73,7 +71,6 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     bool r = clients[i].connect(ip, stoi(port));
     while (true) {
       if (clients[i].has_connected()) {
-        server_is_connect[i] = true;
         spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
         break;
       } else {
@@ -101,16 +98,20 @@ static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len) {
   Package result;
   for (int i = 0; i < 3; i++) {
-    try {
-      if(!server_is_connect[i]) continue;
-      spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
-      std::string key = std::string((char *)column_key, column_key_len);
-      Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
-      result.size += package.size;
-      result.data += package.data;
-    } catch (const std::exception &e) {
-      server_is_connect[i] = false;
-      spdlog::error("Get Error {}", e.what());
+    while (true) {
+      try {
+        if (!clients[i].has_connected()) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          continue;
+        }
+        spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
+        std::string key = std::string((char *)column_key, column_key_len);
+        Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
+        result.size += package.size;
+        result.data += package.data;
+      } catch (const std::exception &e) {
+        spdlog::error("Get Error {}", e.what());
+      }
     }
   }
   return result;
