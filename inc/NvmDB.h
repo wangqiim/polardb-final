@@ -34,11 +34,22 @@ static void Put(const char *tuple, size_t len){
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
+    uint32_t result_bytes = 0;
     if (posArray.size() > 0){
       for (uint32_t pos : posArray) {
         readColumFromPos(select_column, pos, res);
-        if(select_column == Id || select_column == Salary) res += 8;
-        if(select_column == Userid || select_column == Name) res += 128;
+        if(select_column == Id || select_column == Salary) {
+          result_bytes += 8;
+          res += 8;
+        } 
+        if(select_column == Userid || select_column == Name) {
+          result_bytes += 128;
+          res += 128;
+        }
+        if (result_bytes >= 2000 * 8) {
+          spdlog::error("result overflow!!!!!!");
+          exit(1);
+        }
       }
       if (where_column != Salary) return posArray.size();
     }
