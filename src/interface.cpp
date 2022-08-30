@@ -4,6 +4,7 @@
 
 #include "../inc/NvmDB.h"
 
+int call_init_num = 0;
 
 void engine_write(void *ctx, const void *data, size_t len) {
     Put((char *)data, len);
@@ -16,9 +17,10 @@ size_t engine_read( void *ctx, int32_t select_column,
 
 void* engine_init(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                   const char* aep_dir, const char* disk_dir) {
-    initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
     spdlog::set_level(spdlog::level::info);
-    spdlog::info("version [without remoteGet backoff]");
+    call_init_num++;
+    spdlog::info("version [without remoteGet backoff], call engine_init times = {}", call_init_num);
+    initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
 
     return nullptr;
 }
