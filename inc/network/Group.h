@@ -98,11 +98,12 @@ static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len) {
   Package result;
   for (int i = 0; i < 3; i++) {
-    while (true) {
+    while (true) { // backoff
       try {
+        // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
         if (!clients[i].has_connected()) {
-          std::this_thread::sleep_for(std::chrono::seconds(1));
-          continue;
+          spdlog::info("fail Get Select {}, where: {}, from {}, because not connected", select_column, where_column, i);
+          break;
         }
         spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
         std::string key = std::string((char *)column_key, column_key_len);
