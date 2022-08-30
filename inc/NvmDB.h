@@ -28,7 +28,7 @@ static void Put(const char *tuple, size_t len){
     static thread_local int write_count = 0;
     write_count++;
     if (write_count % 1000000 == 0) {
-      spdlog::debug("thread {} write {}", tid, write_count);
+      spdlog::info("thread {} write {}", tid, write_count);
     }
 }
 
