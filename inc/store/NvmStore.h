@@ -13,7 +13,7 @@ class User
 {
 public:
     uint64_t id;
-    unsigned user_id[128];
+    unsigned char user_id[128];
     unsigned char name[128];
     uint64_t salary;
 };
