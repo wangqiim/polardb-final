@@ -48,9 +48,9 @@ uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 // static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
-static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static emhash8::HashMap<Str128, uint32_t, Str128Hash> uk[HASH_MAP_COUNT];
-static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
+static std::unordered_map<Str128, uint32_t, Str128Hash> uk[HASH_MAP_COUNT];
+static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
@@ -58,9 +58,9 @@ static void initIndex() {
 
   for (int i = 0; i < HASH_MAP_COUNT; i++) {
     pthread_rwlock_init(&rwlock[i], NULL);
-  //   pk[i].reserve(4000000);
-  //   uk[i].reserve(4000000);
-  //   sk[i].reserve(4000000);
+    pk[i].reserve(4000000);
+    uk[i].reserve(4000000);
+    sk[i].reserve(4000000);
   }
   spdlog::info("Init Index End");
 }
