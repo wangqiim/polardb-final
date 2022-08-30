@@ -42,7 +42,6 @@ struct Str128Hash {
     }
 };
 
-std::mutex index_mtx;
 pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50];
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
