@@ -22,9 +22,10 @@ static void Put(const char *tuple, size_t len){
     if (tid >= PMEM_FILE_COUNT) {
       spdlog::error("tid overflow, current tid = {}", tid);
     }
-    static thread_local int write_count = 0;
-    writeTuple(tuple, len, tid, write_count);
+    writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
+    // note: write_count just used for log/debug
+    static thread_local int write_count = 0;
     write_count++;
     if (write_count % 1000000 == 0) {
       spdlog::debug("thread {} write {}", tid, write_count);

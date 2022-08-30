@@ -43,7 +43,7 @@ struct Str128Hash {
 };
 
 pthread_rwlock_t rwlock[50];
-uint32_t thread_pos[50];
+uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
@@ -65,6 +65,9 @@ static void initIndex() {
   spdlog::info("Init Index End");
 }
 
+// 该方法有两处调用
+// 1. recovery时调用
+// 2. write插入数据时调用
 static void insert(const char *tuple, size_t len, uint8_t tid) {
     pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;

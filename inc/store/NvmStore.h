@@ -59,8 +59,9 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
 
 
 
-static void writeTuple(const char *tuple, size_t len, uint8_t tid, uint32_t pos) {
+static void writeTuple(const char *tuple, size_t len, uint8_t tid) {
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple, len);
+  uint32_t pos = PBM[tid].offset / 272;
   pos++;
   pmem_memcpy_nodrain(PBM[tid].address - 4, &pos, 4);
   pmem_drain();
@@ -89,6 +90,7 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   }
 }
 
+// build index
 static void recovery() {
   for (int i = 0; i < PMEM_FILE_COUNT; i++) {
     // while (*(uint64_t *)(PBM[i].address + PBM[i].offset) != 0xffffffffffffffff &&  PBM[i].offset/272 < PER_THREAD_MAX_WRITE) {
