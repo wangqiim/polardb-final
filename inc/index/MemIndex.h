@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <vector>
 #include <unordered_map>
+#include <mutex>
 #include "../tools/HashFunc/xxhash.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 
@@ -41,6 +42,8 @@ struct Str128Hash {
     }
 };
 
+std::mutex index_mtx;
+
 uint32_t thread_pos[50];
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
@@ -62,6 +65,7 @@ static void initIndex() {
 }
 
 static void insert(const char *tuple, size_t len, uint8_t tid) {
+  std::lock_guard<std::mutex> guard(index_mtx);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
     uk[tid].insert(std::pair<Str128, uint32_t>(Str128(tuple + 8), pos));
@@ -76,6 +80,7 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
 } 
 
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key) {
+  std::lock_guard<std::mutex> guard(index_mtx);
   std::vector<uint32_t> result;
   if (where_column == Id) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
