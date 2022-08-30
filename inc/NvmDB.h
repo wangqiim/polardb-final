@@ -3,6 +3,7 @@
 #include <cstdio>
 #include "./network/Group.h"
 #include "./store/NvmStore.h"
+#include "util.h"
 #include "spdlog/spdlog.h"
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
@@ -11,6 +12,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     initIndex();
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
+    Util::print_resident_set_size();
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
