@@ -18,6 +18,7 @@ void* engine_init(const char* host_info, const char* const* peer_host_info, size
                   const char* aep_dir, const char* disk_dir) {
     initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
     spdlog::set_level(spdlog::level::info);
+    spdlog::info("version [remoteGet backoff]");
 
     return nullptr;
 }
