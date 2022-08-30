@@ -17,6 +17,9 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len){
     static thread_local uint8_t tid = putTid++;
+    if (tid >= PMEM_FILE_COUNT) {
+      spdlog::error("tid overflow, current tid = {}", tid);
+    }
     static thread_local int write_count = 0;
     writeTuple(tuple, len, tid, write_count);
     insert(tuple, len, tid);
