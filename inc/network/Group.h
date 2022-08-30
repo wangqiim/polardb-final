@@ -102,7 +102,6 @@ static Package clientRemoteGet(int32_t select_column,
       try {
         // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
         if (!clients[i].has_connected()) {
-          spdlog::info("fail Get Select {}, where: {}, from {}, because not connected", select_column, where_column, i);
           break;
         }
         spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
@@ -110,6 +109,7 @@ static Package clientRemoteGet(int32_t select_column,
         Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
         result.size += package.size;
         result.data += package.data;
+        break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
       }
