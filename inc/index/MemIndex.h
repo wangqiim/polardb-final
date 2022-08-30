@@ -91,8 +91,8 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       if (it != pk[i].end()) {
         isFind = true;
       }
+      if (isFind) result.push_back(it->second);
       pthread_rwlock_unlock(&rwlock[i]);
-      if (isFind) return {it -> second};
     }
   }
   if (where_column == Userid) {
@@ -103,8 +103,8 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       if (it != uk[i].end()) {
         isFind = true;
       } 
+      if (isFind) result.push_back(it->second);
       pthread_rwlock_unlock(&rwlock[i]);
-      if (isFind) return {it -> second};
     }    
   }
   if (where_column == Salary) {
@@ -115,12 +115,12 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       if (it != sk[i].end()) {
         isFind = true;
       }
-      pthread_rwlock_unlock(&rwlock[i]);
       if (isFind) {
         for (int j = 0; j < it -> second.size(); j++) {
           result.push_back(it -> second[j]);
         }
       }
+      pthread_rwlock_unlock(&rwlock[i]);
     }
   }
 
