@@ -27,13 +27,26 @@ static void Put(const char *tuple, size_t len){
     // note: write_count just used for log/debug
     static thread_local int write_count = 0;
     write_count++;
-    if (write_count % 10000 == 0) {
+    if (write_count % 100000 == 0) {
       spdlog::info("thread {} write {}", tid, write_count);
     }
 }
 
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
+    static thread_local int local_read_count = 0;
+    static thread_local int remote_read_count = 0;
+    if (is_local) {
+      local_read_count++;
+      if (local_read_count % 500 == 0) {
+        spdlog::info("local_read_count {}", local_read_count);
+      }
+    } else {
+      remote_read_count++;
+      if (remote_read_count % 500 == 0) {
+        spdlog::info("remote_read_count {}", remote_read_count);
+      }
+    }
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
     uint32_t result_bytes = 0;
     if (posArray.size() > 0){
