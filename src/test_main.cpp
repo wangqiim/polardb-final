@@ -174,15 +174,15 @@ void test_read(void *ctx) {
     pthread_exit(NULL);
 }
 
-static std::atomic<uint8_t> threadId(0);
+static std::atomic<uint64_t> threadId(0);
 void write_400M (void* ctx) {
-    uint8_t id = threadId++;
+    uint64_t id = threadId++;
     std::string file = "./Dataset/user" + std::to_string(id) + ".dat";
     std::ofstream outFile(file, std::ios::out | std::ios::binary);
     for(unsigned long i = 0; i < 4000000UL; i++) {
         TestUser user;
         user.id = id * 4000000UL + i;
-        user.salary = id;
+        user.salary = user.id;
         memcpy(user.name,randstr(128).c_str(),128);
         memcpy(user.user_id,randstr(128).c_str(),128); 
         outFile.write((char *)&user, sizeof(user));
@@ -202,10 +202,10 @@ int main()
     // engine_deinit(nullptr);
     // test_read(ctx);
 
-    // for(int i = 0; i < 50; ++i)
-    // {   
-    //     write_400M(nullptr);
-    // }
+    for(int i = 0; i < 50; ++i)
+    {   
+        write_400M(nullptr);
+    }
 
     if(test_is_ok(ctx)) {
         std::cout << "正确性验证成功！" << std::endl;
