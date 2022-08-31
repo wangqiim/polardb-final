@@ -38,9 +38,7 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      uint64_t res = rhs.hashCode1 << 32;
-      res |= rhs.hashCode2;
-      return res;
+      return rhs.hashCode2;
     }
 };
 
@@ -88,12 +86,12 @@ static void initIndex() {
       }
   }
 
-  for (int i = 0; i < HASH_MAP_COUNT; i++) {
-    pthread_rwlock_init(&rwlock[i], NULL);
-    pk[i].reserve(4000000);
-    uk[i].reserve(4000000);
-    sk[i].reserve(4000000);
-  }
+  // for (int i = 0; i < HASH_MAP_COUNT; i++) {
+  //   pthread_rwlock_init(&rwlock[i], NULL);
+  //   pk[i].reserve(4000000);
+  //   uk[i].reserve(4000000);
+  //   sk[i].reserve(4000000);
+  // }
   spdlog::info("Init Index End");
 }
 

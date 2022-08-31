@@ -28,6 +28,9 @@ static void Put(const char *tuple, size_t len){
     static thread_local int write_count = 0;
     write_count++;
     if (write_count % 100000 == 0) {
+      if (write_count % 1000000 == 0) {
+        Util::print_resident_set_size();
+      }
       spdlog::info("thread {} write {}", tid, write_count);
     }
 }
