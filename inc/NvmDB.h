@@ -11,7 +11,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("[initNvmDB] NvmDB Init Begin");
     initIndex();
     initStore(aep_dir, disk_dir);
-    // initGroup(host_info, peer_host_info, peer_host_info_num);
+    initGroup(host_info, peer_host_info, peer_host_info_num);
     Util::print_resident_set_size();
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
