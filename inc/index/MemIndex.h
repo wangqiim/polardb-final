@@ -38,7 +38,9 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      return rhs.hashCode2;
+      uint64_t res = rhs.hashCode1 << 32;
+      res |= rhs.hashCode2;
+      return res;
     }
 };
 
