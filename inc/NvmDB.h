@@ -38,13 +38,13 @@ static size_t Get(int32_t select_column,
     static thread_local int remote_read_count = 0;
     if (is_local) {
       local_read_count++;
-      if (local_read_count % 500 == 0) {
-        spdlog::info("local_read_count {}", local_read_count);
+      if (local_read_count == 1) {
+        spdlog::info("first call local_read_count once");
       }
     } else {
       remote_read_count++;
-      if (remote_read_count % 500 == 0) {
-        spdlog::info("remote_read_count {}", remote_read_count);
+      if (remote_read_count == 1) {
+        spdlog::info("first call remote_read_count once");
       }
     }
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
