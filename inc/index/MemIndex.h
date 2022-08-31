@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <mutex>
 #include "../tools/HashFunc/xxhash.h"
+#include "../tools/HashMap/EMHash/emhash5_int64_to_int64.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 
@@ -63,9 +64,9 @@ struct Str128Hash {
 
 pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
-static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+static emhash5::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
+static emhash5::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+static emhash5::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static std::unordered_map<Str128, uint32_t, Str128Hash> uk[HASH_MAP_COUNT];
