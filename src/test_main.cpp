@@ -5,14 +5,15 @@
 #include <thread>
 #include <fstream>
 #include <sys/time.h>
+#include <atomic>
 
 class TestUser
 {
 public:
-    int64_t id;
-    char user_id[128];
-    char name[128];
-    int64_t salary;
+    uint64_t id;
+    unsigned char user_id[128];
+    unsigned char name[128];
+    uint64_t salary;
 };
 
 enum TestColumn{Id=0,Userid,Name,Salary};
@@ -88,8 +89,8 @@ void* thread_read(void* ctx)
 bool test_is_ok(void *ctx) {
     TestUser user;
     char res[2000*128];
-    user.id = 37000010;
-    user.salary = 370000200;
+    user.id = 17000010;
+    user.salary = 170000200;
     memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {4,13,13,5,22,35,18,6,82,59,22,21,42,19,11,71,72,51,69,22,94,104,22,39,21,24,43,5,55,21,110,20,71,10,89,1,60,47,7,68,38,55,74,96,71,35,5,63,36,4,12,30,22,7,21,49,15,6,25,8,8,5,7,79,61,87,92,75,6,25,17,23,20,57,20,17,13,38,26,3,44,29,23,59,16,9,51,67,3,36,10,71,93,12,38,25,15,13,71,34,22,60,9,82,54,72,109,20,54,1,47,5,27,42,6,14,33,23,22,81,12,23,19,34,17,25,17,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
@@ -173,14 +174,15 @@ void test_read(void *ctx) {
     pthread_exit(NULL);
 }
 
-void* write_100M (void* ctx) {
-    int id = *(int *)ctx;
+static std::atomic<uint8_t> threadId(0);
+void write_400M (void* ctx) {
+    uint8_t id = threadId++;
     std::string file = "./Dataset/user" + std::to_string(id) + ".dat";
     std::ofstream outFile(file, std::ios::out | std::ios::binary);
-    for(unsigned long i = 0; i < 1000000; i++) {
+    for(unsigned long i = 0; i < 4000000UL; i++) {
         TestUser user;
-        user.id = id * 1000000UL + i;
-        user.salary = id * 10000000UL + 100 + i%20000 * 10;
+        user.id = id * 4000000UL + i;
+        user.salary = id;
         memcpy(user.name,randstr(128).c_str(),128);
         memcpy(user.user_id,randstr(128).c_str(),128); 
         outFile.write((char *)&user, sizeof(user));
@@ -200,14 +202,10 @@ int main()
     // engine_deinit(nullptr);
     // test_read(ctx);
 
-    // pthread_t tids[NUM_THREADS];
-    // for(int i = 0; i < 50; ++i)
-    // {
-    //     int fid = i;
-    //     //参数依次是：创建的线程id，线程参数，调用的函数，传入的函数参数
-    //     int ret = pthread_create(&tids[i], NULL, write_100M, &fid);
-    //     pthread_join(tids[i], NULL);
-    // }
+    for(int i = 0; i < 50; ++i)
+    {   
+        write_400M(nullptr);
+    }
 
     if(test_is_ok(ctx)) {
         std::cout << "正确性验证成功！" << std::endl;
