@@ -88,12 +88,12 @@ static void initIndex() {
       }
   }
 
-  // for (int i = 0; i < HASH_MAP_COUNT; i++) {
-  //   pthread_rwlock_init(&rwlock[i], NULL);
-  //   pk[i].reserve(4000000);
-  //   uk[i].reserve(4000000);
-  //   sk[i].reserve(4000000);
-  // }
+  for (int i = 0; i < HASH_MAP_COUNT; i++) {
+    pthread_rwlock_init(&rwlock[i], NULL);
+    // pk[i].reserve(4000000);
+    uk[i].reserve(4000000);
+    // sk[i].reserve(4000000);
+  }
   spdlog::info("Init Index End");
 }
 
