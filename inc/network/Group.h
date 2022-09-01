@@ -36,7 +36,7 @@ static bool serverSyncDeinit(rpc_conn conn) {
 
 void *runServer(void *input) {
   int port = *(int *)input;
-  server = new rpc_server(port, 8,10,5);
+  server = new rpc_server(port, 16,8,4);
   server -> register_handler("remoteGet", remoteGet);
   server -> register_handler("serverSyncInit", serverSyncInit);
   server -> register_handler("serverSyncDeinit", serverSyncDeinit);
@@ -96,7 +96,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 
  // 指数退避
 const uint32_t retry_base_interval = 10; //单位毫秒
-const uint32_t max_retry_times = 10;
+const uint32_t max_retry_times = 0;
 
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len) {
