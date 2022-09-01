@@ -106,7 +106,6 @@ static Package clientRemoteGet(int32_t select_column,
     while (true) { // backoff
       if (retry_time > max_retry_times) { // 超过10次放弃retry，可能无法获得所有数据
         spdlog::error("network congestion!!!");
-        client[i].close();
         break;
       } else if (retry_time != 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(retry_base_interval << (retry_time - 1)));
@@ -124,6 +123,7 @@ static Package clientRemoteGet(int32_t select_column,
         break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
+        clients[i].close();
       }
       retry_time++;
     }
