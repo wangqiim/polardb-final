@@ -83,11 +83,11 @@ class MyUInt64HashMap {
   }
 
   uint64_t get(uint32_t key) {
-    return hash_table[key & (hashSize - 1)];
+    return hash_table[key & (hashSize)];
   }
 
   void insert(uint32_t key, uint64_t value) {
-    hash_table[key & (hashSize - 1)] = value;
+    hash_table[key & (hashSize)] = value;
   }
 
   void stat() {
@@ -96,5 +96,5 @@ class MyUInt64HashMap {
 
   private:
   uint64_t *hash_table;
-  const uint32_t hashSize = 1<<26;
+  const uint32_t hashSize = 1<<26 - 1;
 };
