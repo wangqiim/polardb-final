@@ -68,6 +68,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
     clients[i].enable_auto_reconnect(); // automatic reconnect
     clients[i].enable_auto_heartbeat(); // automatic heartbeat
+    clients[i].connect(ip, stoi(port));
     while (true) {
       if (clients[i].has_connected()) {
         spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
