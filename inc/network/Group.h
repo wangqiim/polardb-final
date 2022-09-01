@@ -132,7 +132,7 @@ static Package clientRemoteGet(int32_t select_column,
         clients[i] -> disable_auto_reconnect();
         clients[i] -> close();
         client_is_runing[i] = false;
-        delete clients[i];
+        if(clients[i] != nullptr) delete clients[i];
       }
       retry_time++;
     }
