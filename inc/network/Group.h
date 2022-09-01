@@ -66,14 +66,13 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
     spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
-    // clients[i].enable_auto_reconnect(); // automatic reconnect
-    // clients[i].enable_auto_heartbeat(); // automatic heartbeat
+    clients[i].enable_auto_reconnect(); // automatic reconnect
+    clients[i].enable_auto_heartbeat(); // automatic heartbeat
     while (true) {
       if (clients[i].has_connected()) {
         spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
         break;
       } else {
-        clients[i].connect(ip, stoi(port));
         spdlog::info("Failed Connect Server  {}, ip: {}, port: {}", i, ip, port);
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -123,6 +122,7 @@ static Package clientRemoteGet(int32_t select_column,
         break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
+        clients[i].disable_auto_reconnect();
         clients[i].close();
       }
       retry_time++;

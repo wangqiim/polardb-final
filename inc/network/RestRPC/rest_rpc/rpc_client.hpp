@@ -160,6 +160,12 @@ public:
     enable_reconnect_ = enable;
     reconnect_cnt_ = std::numeric_limits<int>::max();
   }
+   
+  void disable_auto_reconnect(bool enable = false) {
+    enable_reconnect_ = enable;
+    reconnect_cnt_ = 0;
+    deadline_.cancel();
+  }
 
   void enable_auto_heartbeat(bool enable = true) {
     if (enable) {
