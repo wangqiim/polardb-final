@@ -11,6 +11,7 @@ using namespace rest_rpc::rpc_service;
 rpc_client clients[3];
 rpc_server *server;
 
+bool client_is_runing[3];
 bool group_is_deinit;
 
 struct Package {
@@ -50,6 +51,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   int index = s.find(":");
   std::string port = s.substr(index + 1, s.length());
   for (int i = 0; i < peer_host_info_num; i++) {
+    client_is_runing[i] = true;
     spdlog::info("peer host info {}, {}", i, peer_host_info[i]);
   }
 
@@ -112,7 +114,10 @@ static Package clientRemoteGet(int32_t select_column,
       }
       try {
         // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
-        if (!clients[i].has_connected()) {
+        // if (!clients[i].has_connected()) {
+        //   break;
+        // }
+        if (!client_is_runing[i]) {
           break;
         }
         spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
@@ -125,6 +130,12 @@ static Package clientRemoteGet(int32_t select_column,
         spdlog::error("Get Error {}", e.what());
         clients[i].disable_auto_reconnect();
         clients[i].close();
+        client_is_runing[i] = false;
+        int i = 0;
+        for (i = 0; i < 3; i++) {
+          if (client_is_runing[i]) break;
+        }
+        if (i == 3) delete server;
       }
       retry_time++;
     }
