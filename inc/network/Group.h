@@ -144,7 +144,7 @@ static void deInitGroup() {
   group_is_deinit = true;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (clients[i] -> call<bool>("serverSyncDeinit")) {
+      if (clients[i] != nullptr && clients[i] -> call<bool>("serverSyncDeinit")) {
         spdlog::info("Server {} ready to deinit", i);
         break;
       } else {
