@@ -94,11 +94,22 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
+ // 指数退避
+const uint32_t retry_base_interval = 10; //单位毫秒
+const uint32_t max_retry_times = 10;
+
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len) {
   Package result;
   for (int i = 0; i < 3; i++) {
+    int retry_time = 0;
     while (true) { // backoff
+      if (retry_time > max_retry_times) { // 超过10次放弃retry，可能无法获得所有数据
+        spdlog::error("network congestion!!!");
+        break;
+      } else if (retry_time != 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(retry_base_interval << (retry_time - 1)));
+      }
       try {
         // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
         if (!clients[i].has_connected()) {
@@ -112,8 +123,8 @@ static Package clientRemoteGet(int32_t select_column,
         break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
-        clients[i].close();
       }
+      retry_time++;
     }
   }
   return result;
