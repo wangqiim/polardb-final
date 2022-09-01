@@ -36,7 +36,7 @@ static bool serverSyncDeinit(rpc_conn conn) {
 
 void *runServer(void *input) {
   int port = *(int *)input;
-  server = new rpc_server(port, 2,15,10);
+  server = new rpc_server(port, 4,15,10);
   server -> register_handler("remoteGet", remoteGet);
   server -> register_handler("serverSyncInit", serverSyncInit);
   server -> register_handler("serverSyncDeinit", serverSyncDeinit);

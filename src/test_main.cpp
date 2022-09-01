@@ -202,10 +202,10 @@ int main()
     // engine_deinit(nullptr);
     // test_read(ctx);
 
-    for(int i = 0; i < 50; ++i)
-    {   
-        write_400M(nullptr);
-    }
+    // for(int i = 0; i < 50; ++i)
+    // {   
+    //     write_400M(nullptr);
+    // }
 
     if(test_is_ok(ctx)) {
         std::cout << "正确性验证成功！" << std::endl;

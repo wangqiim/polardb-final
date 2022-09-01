@@ -70,7 +70,9 @@ uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+static std::unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
+
+// static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
@@ -105,13 +107,13 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
     uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
-
-    auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
-    if (it != sk[tid].end()) {
-        it -> second.push_back(pos);
-    } else {
-        sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
-    }
+    sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
+    // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
+    // if (it != sk[tid].end()) {
+    //     it -> second.push_back(pos);
+    // } else {
+    //     sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
+    // }
     thread_pos[tid]++;
     // pthread_rwlock_unlock(&rwlock[tid]);
 } 
@@ -144,17 +146,21 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
   }
   if (where_column == Salary) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      bool isFind = false;
+      // bool isFind = false;
       // pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = sk[i].find(*(uint64_t *)((char *)column_key));
-      if (it != sk[i].end()) {
-        isFind = true;
+      auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
+      for (auto it = its.first; it != its.second; ++it) {
+        result.push_back(it->second);
       }
-      if (isFind) {
-        for (int j = 0; j < it -> second.size(); j++) {
-          result.push_back(it -> second[j]);
-        }
-      }
+      // auto it = sk[i].find(*(uint64_t *)((char *)column_key));
+      // if (it != sk[i].end()) {
+      //   isFind = true;
+      // }
+      // if (isFind) {
+      //   for (int j = 0; j < it -> second.size(); j++) {
+      //     result.push_back(it -> second[j]);
+      //   }
+      // }
       // pthread_rwlock_unlock(&rwlock[i]);
     }
   }
