@@ -8,7 +8,7 @@
 using namespace rest_rpc;
 using namespace rest_rpc::rpc_service;
 
-rpc_client clients[3];
+rpc_client *clients[3];
 rpc_server *server;
 
 bool client_is_runing[3];
@@ -25,7 +25,7 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
 
 static bool serverSyncInit(rpc_conn conn) {
   for (int i = 0; i < 3; i++) {
-    bool isInit = clients[i].has_connected();
+    bool isInit = clients[i] -> has_connected();
     if (!isInit) return false; 
   }
   return true;
@@ -37,7 +37,7 @@ static bool serverSyncDeinit(rpc_conn conn) {
 
 void *runServer(void *input) {
   int port = *(int *)input;
-  server = new rpc_server(port, 16,8,4);
+  server = new rpc_server(port, 12,8,4);
   server -> register_handler("remoteGet", remoteGet);
   server -> register_handler("serverSyncInit", serverSyncInit);
   server -> register_handler("serverSyncDeinit", serverSyncDeinit);
@@ -67,12 +67,13 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     int flag = s.find(":");
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
+    clients[i] = new rpc_client();
     spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
-    clients[i].enable_auto_reconnect(); // automatic reconnect
-    clients[i].enable_auto_heartbeat(); // automatic heartbeat
-    clients[i].connect(ip, stoi(port));
+    clients[i] -> enable_auto_reconnect(); // automatic reconnect
+    clients[i] -> enable_auto_heartbeat(); // automatic heartbeat
+    clients[i] -> connect(ip, stoi(port));
     while (true) {
-      if (clients[i].has_connected()) {
+      if (clients[i] -> has_connected()) {
         spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
         break;
       } else {
@@ -84,7 +85,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 
   for (int i = 0; i < peer_host_info_num; i++) {
     while (true) {
-      if (clients[i].call<bool>("serverSyncInit")) {
+      if (clients[i] -> call<bool>("serverSyncInit")) {
         spdlog::info("Server {} init Success", i);
         break;
       } else {
@@ -122,20 +123,16 @@ static Package clientRemoteGet(int32_t select_column,
         }
         spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
         std::string key = std::string((char *)column_key, column_key_len);
-        Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
+        Package package = clients[i] -> call<Package>("remoteGet", select_column, where_column, key, column_key_len);
         result.size += package.size;
         result.data += package.data;
         break;
       } catch (const std::exception &e) {
         spdlog::error("Get Error {}", e.what());
-        clients[i].disable_auto_reconnect();
-        clients[i].close();
+        clients[i] -> disable_auto_reconnect();
+        clients[i] -> close();
         client_is_runing[i] = false;
-        int i = 0;
-        for (i = 0; i < 3; i++) {
-          if (client_is_runing[i]) break;
-        }
-        if (i == 3) delete server;
+        delete clients[i];
       }
       retry_time++;
     }
@@ -147,7 +144,7 @@ static void deInitGroup() {
   group_is_deinit = true;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (clients[i].call<bool>("serverSyncDeinit")) {
+      if (clients[i] -> call<bool>("serverSyncDeinit")) {
         spdlog::info("Server {} ready to deinit", i);
         break;
       } else {

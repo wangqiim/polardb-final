@@ -65,7 +65,7 @@ struct Str128Hash {
 pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-// static emhash5::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+// static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
