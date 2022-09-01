@@ -66,14 +66,14 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
     spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
-    clients[i].enable_auto_reconnect(); // automatic reconnect
-    clients[i].enable_auto_heartbeat(); // automatic heartbeat
-    bool r = clients[i].connect(ip, stoi(port));
+    // clients[i].enable_auto_reconnect(); // automatic reconnect
+    // clients[i].enable_auto_heartbeat(); // automatic heartbeat
     while (true) {
       if (clients[i].has_connected()) {
         spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
         break;
       } else {
+        clients[i].connect(ip, stoi(port));
         spdlog::info("Failed Connect Server  {}, ip: {}, port: {}", i, ip, port);
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -106,6 +106,7 @@ static Package clientRemoteGet(int32_t select_column,
     while (true) { // backoff
       if (retry_time > max_retry_times) { // 超过10次放弃retry，可能无法获得所有数据
         spdlog::error("network congestion!!!");
+        client[i].close();
         break;
       } else if (retry_time != 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(retry_base_interval << (retry_time - 1)));
