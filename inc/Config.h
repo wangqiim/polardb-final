@@ -3,25 +3,19 @@
 #ifndef HRH_HRHCONST_H
 #define HRH_HRHCONSTE_H
 
+//原始record的长度
+const uint64_t RECORD_SIZE = 272;
+
 //表空间大小
-const int TABLE_SIZE = 50000005;
+const uint64_t TABLE_SIZE = 50000005;
 
-const int PER_THREAD_MAX_WRITE = 200000000 / 50;
+const uint64_t COMMIT_FLAG_SIZE = 4;
+const uint64_t PER_THREAD_MAX_WRITE = 5e6; // 有的线程会写超过400W，这里取500万
 //哈希索引分块
-const int HASH_MAP_COUNT = 50;
+const uint64_t HASH_MAP_COUNT = 50;
 //NMV文件数
-const int PMEM_FILE_COUNT = 50;
-//NVM文件空间
-const unsigned long PMEM_SIZE = (1UL << 36); // 64G
+const uint64_t PMEM_FILE_COUNT = 50;
 
-
-const int WRITEMEM_THREAD = 16;
-//NVM 分块数
-const int NVMBLOCK_COUNT = 1;
-//写NVM线程数
-const int WRITENVM_THREAD = 2;
-//读NVM线程数
-const int READNVM_THREAD = 2;
 //有3个peer
 const int PeerHostInfoNum = 3;
 
