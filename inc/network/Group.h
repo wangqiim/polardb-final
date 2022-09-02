@@ -117,7 +117,7 @@ static Package clientRemoteGet(int32_t select_column,
         }
         spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
         std::string key = std::string((char *)column_key, column_key_len);
-        Package package = clients[i].call<Package>("remoteGet", select_column, where_column, key, column_key_len);
+        Package package = clients[i].call<20000, Package>("remoteGet", select_column, where_column, key, column_key_len);
         result.size += package.size;
         result.data += package.data;
         break;
