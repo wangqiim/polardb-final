@@ -96,7 +96,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 
  // 指数退避
 const uint32_t retry_base_interval = 10; //单位毫秒
-const uint32_t max_retry_times = 5;
+const uint32_t max_retry_times = 0;
 
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len) {
