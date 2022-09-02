@@ -36,7 +36,7 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
   if(base_path[base_path.length() - 1] != '/') {
     base_path = base_path + "/";
   }
-  unsigned long mmap_size = PMEM_SIZE / PMEM_FILE_COUNT;
+  unsigned long mmap_size = RECORD_SIZE * PER_THREAD_MAX_WRITE + COMMIT_FLAG_SIZE;
   for(int i = 0; i < PMEM_FILE_COUNT; i++) {
     std::string path = std::string(base_path) + "pmem" + std::to_string(i) + ".pool";
     size_t mapped_len;
@@ -49,15 +49,13 @@ static void initStore(const char* aep_dir, const char* disk_dir) {
       perror("pmem_map_file");
     }
     if (is_create) {
-      pmem_memset_nodrain(PBM[i].address, 0, PMEM_SIZE / PMEM_FILE_COUNT);  
+      pmem_memset_nodrain(PBM[i].address, 0, mmap_size);  
     }
-    PBM[i].address += 4;
+    PBM[i].address += COMMIT_FLAG_SIZE;
   }
   recovery();
   spdlog::info("Store Init End");
 }
-
-
 
 static void writeTuple(const char *tuple, size_t len, uint8_t tid) {
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple, len);
@@ -70,8 +68,8 @@ static void writeTuple(const char *tuple, size_t len, uint8_t tid) {
 
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   uint8_t tid = pos / PER_THREAD_MAX_WRITE;
-  uint64_t offset = pos % PER_THREAD_MAX_WRITE;
-  char *user = PBM[tid].address + offset * 272UL;
+  uint64_t offset = (pos % PER_THREAD_MAX_WRITE) * 272UL;
+  char *user = PBM[tid].address + offset;
   if (select_column == Id) {
     memcpy(res, user, 8);
     return;
@@ -94,11 +92,8 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
 static void recovery() {
   uint64_t recovery_cnt = 0;
   for (int i = 0; i < PMEM_FILE_COUNT; i++) {
-    // while (*(uint64_t *)(PBM[i].address + PBM[i].offset) != 0xffffffffffffffff &&  PBM[i].offset/272 < PER_THREAD_MAX_WRITE) {
-    //   insert(PBM[i].address + PBM[i].offset, 272UL, 0);
-    //   PBM[i].offset += 272UL;
-    // }
-    for (int j = 0; j < *(uint32_t *)(PBM[i].address - 4); j++) {
+    uint32_t commit_cnt = *(uint32_t *)(PBM[i].address - 4);
+    for (int j = 0; j < commit_cnt; j++) {
       insert(PBM[i].address + PBM[i].offset, 272UL, i);
       PBM[i].offset += 272UL;
     }

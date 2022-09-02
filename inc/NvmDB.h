@@ -22,11 +22,14 @@ static void Put(const char *tuple, size_t len){
     if (tid >= PMEM_FILE_COUNT) {
       spdlog::error("tid overflow, current tid = {}", tid);
     }
+    static thread_local int write_count = 0;
+    write_count++;
+    if (write_count > PER_THREAD_MAX_WRITE) {
+      spdlog::error("write_count overflow!");
+    }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
     // note: write_count just used for log/debug
-    static thread_local int write_count = 0;
-    write_count++;
     if (write_count % 200000 == 0) {
       if (write_count % 1000000 == 0) {
         Util::print_resident_set_size();
@@ -111,7 +114,6 @@ static Package remoteGet(rpc_conn conn, int32_t select_column,
   }
   return packge;
 }
-
 
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
