@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project("interface")
 set(CMAKE_CXX_STANDARD 17)
+add_compile_options(-fPIC)
 
 add_compile_options(-march=native -ffast-math)
 # add_compile_options(-march=native -ffast-math -mavx2)
@@ -23,7 +24,8 @@ include_directories(inc
 
 add_library(interface SHARED ${native_srcs} )
 
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem)
+# must link TBB::tbbmalloc TBB::tbbmalloc_proxy, it will decrease memory usage  
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem TBB::tbbmalloc TBB::tbbmalloc_proxy)
         
 # dingtalk_nxjewr
 
