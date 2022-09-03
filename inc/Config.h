@@ -19,6 +19,9 @@ const uint64_t PMEM_FILE_COUNT = 50;
 //有3个peer
 const int PeerHostInfoNum = 3;
 
+// rpc timeout 默认所有的调用的在60s内都能成功，不成功则打印error log
+const int64_t RPC_TIMEOUT = 60000;
+
 enum Column{Id=0,Userid,Name,Salary};
 
 #endif
