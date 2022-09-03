@@ -55,9 +55,10 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         }
       }
     }
-    group_is_runing = true;
   }
 
+  group_is_runing = true;
+  
   for (int i = 0; i < peer_host_info_num; i++) {
     while (true) {
       if (client_sync(4, i, 0) > 0) {
@@ -69,7 +70,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(15));
+  std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
  // 指数退避
@@ -118,5 +119,5 @@ static void deInitGroup() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(15));
+  std::this_thread::sleep_for(std::chrono::seconds(4));
 }
