@@ -23,7 +23,8 @@ include_directories(inc
 
 add_library(interface SHARED ${native_srcs} )
 
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem TBB::tbb)
+# must link TBB::tbbmalloc TBB::tbbmalloc_proxy, it will decrease memory usage  
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy)
         
 # dingtalk_nxjewr
 
