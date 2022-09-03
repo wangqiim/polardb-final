@@ -1,0 +1,120 @@
+#pragma mark once
+#include <sys/types.h> /* See NOTES */
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+// #include "Config.h"
+#include "spdlog/spdlog.h"
+
+#include <pthread.h>
+#include <stdio.h>
+#include <errno.h>
+#include <ctype.h>
+#include <exception> 
+
+struct s_info {
+    sockaddr_in s_addr;
+    int fd;
+} ts[256];
+
+struct Package {
+  uint32_t size = 0;
+  char data[2000 * 8];
+};
+
+// Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
+const int BUFSIZE = 130;
+
+static Package remoteGet(int32_t select_column,
+          int32_t where_column, char *column_key, size_t column_key_len);
+
+static bool serverSyncInit();
+static bool serverSyncDeinit();
+
+void *connect_client(void *arg) {
+    struct s_info *ts = (struct s_info *)arg;
+    ssize_t size_len = 0;
+    char buf[BUFSIZE];
+    while (1) {
+        size_len = read(ts->fd, buf, BUFSIZE);
+        if (size_len == 0) {
+            close(ts->fd);
+            pthread_exit(NULL);
+        }
+        uint8_t selectColum = *(uint8_t *)buf;
+        //判断同步启动 || 关闭
+        if (selectColum == 4 || selectColum == 5) {
+            bool result;
+            if (selectColum == 4) {
+                result = serverSyncInit();
+            } else {
+                result = serverSyncDeinit();
+            }
+            if (write(ts->fd, &result, sizeof(result)) < 0) {
+                spdlog::error("server_socket sync error");
+            }
+            continue;            
+        }      
+        uint8_t whereColum = *(uint8_t *)(buf + 1);
+        char *column_key = buf + 2;
+        spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, column_key);
+        Package page = remoteGet(selectColum, whereColum, column_key, 0);
+        if (write(ts->fd, &page, sizeof(page)) < 0) {
+            spdlog::error("server_socket write error");
+        }
+    }
+}
+
+static void my_server_run(const char *ip, int port) {
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket < 0) {
+        spdlog::error("server_socket create error");
+    } else {
+         spdlog::debug("server_socket create success");
+    }
+    int opt = 1;
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (void *)&opt, sizeof(opt)) < 0) {
+        spdlog::error("set socket error");
+    } else {
+        spdlog::debug("set socket success");
+    }
+
+    sockaddr_in addr, client;
+    socklen_t len = sizeof(client);
+
+    addr.sin_addr.s_addr =  htonl(INADDR_ANY);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+
+    if (bind(server_socket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        spdlog::error("bind socket error, ip {}", ip);
+    } else {
+        spdlog::debug("bind socket success");
+    }
+
+    if (listen(server_socket, 127) < 0) {
+        spdlog::error("listen socket error, ip {}", ip);
+    } else {
+        spdlog::debug("listen socket success");
+    }
+
+    int i = 0;
+    while (1) {
+        int client_fd = accept(server_socket, (struct sockaddr*)&client, &len);
+        if (client_fd < 0) {
+            spdlog::error("accept socket error, ip {}", ip);
+        } else {
+            spdlog::debug("accept socket success, ip {}", ip);
+        }
+        ts[i].s_addr = client;
+        ts[i].fd = client_fd;
+
+        pthread_t tid;
+        pthread_create(&tid, NULL, connect_client, (void *)&ts[i]);
+        pthread_detach(tid);
+        i++;
+    }
+}
+

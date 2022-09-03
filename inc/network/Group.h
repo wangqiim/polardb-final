@@ -1,65 +1,42 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "./RestRPC/rest_rpc.hpp"
 #include "Config.h"
 #include "spdlog/spdlog.h"
-
-using namespace rest_rpc;
-using namespace rest_rpc::rpc_service;
-
-rpc_client *clients[3];
-rpc_server *server;
+#include "./MySocket/MyClient.h"
 
 bool client_is_runing[3];
-bool group_is_deinit;
+bool group_is_runing = false;
+bool group_is_deinit = false;
 
-struct Package {
-  uint32_t size = 0;
-  std::string data = "";
-  MSGPACK_DEFINE(size, data);
-};
-
-static Package remoteGet(rpc_conn conn, int32_t select_column,
+static Package remoteGet(int32_t select_column,
           int32_t where_column, const std::string &column_key, size_t column_key_len);
 
-static bool serverSyncInit(rpc_conn conn) {
-  for (int i = 0; i < 3; i++) {
-    bool isInit = clients[i] -> has_connected();
-    if (!isInit) return false; 
-  }
-  return true;
+static bool serverSyncInit() {
+  return group_is_runing;
 }
 
-static bool serverSyncDeinit(rpc_conn conn) {
+static bool serverSyncDeinit() {
   return group_is_deinit;
 }
 
 void *runServer(void *input) {
-  int port = *(int *)input;
-  server = new rpc_server(port, 12,8,4);
-  server -> register_handler("remoteGet", remoteGet);
-  server -> register_handler("serverSyncInit", serverSyncInit);
-  server -> register_handler("serverSyncDeinit", serverSyncDeinit);
-  spdlog::info("Local rpc_Server Success Run port: {}", port);
-  server -> run();
+  std::string s = std::string((char *)input);
+  int index = s.find(":");
+  std::string ip = s.substr(0,index);
+  std::string port = s.substr(index + 1, s.length());
+  my_server_run(ip.c_str(), stoi(port));
 }
 
 
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
-  std::string s = std::string(host_info);
-  int index = s.find(":");
-  std::string port = s.substr(index + 1, s.length());
+
   for (int i = 0; i < peer_host_info_num; i++) {
     client_is_runing[i] = true;
-    spdlog::info("peer host info {}, {}", i, peer_host_info[i]);
   }
 
-  group_is_deinit = false;
-
   pthread_t serverId;
-  int portInt = stoi(port);
-  int ret = pthread_create(&serverId, NULL, runServer, &portInt);
+  int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
 
   for (int i = 0; i < peer_host_info_num; i++) {
     std::string s = std::string(peer_host_info[i]);
@@ -67,25 +44,23 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     int flag = s.find(":");
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
-    clients[i] = new rpc_client();
-    spdlog::info("Server {}, ip: {}, port: {}", i, ip, port);
-    clients[i] -> enable_auto_reconnect(); // automatic reconnect
-    clients[i] -> enable_auto_heartbeat(); // automatic heartbeat
-    clients[i] -> connect(ip, stoi(port));
-    while (true) {
-      if (clients[i] -> has_connected()) {
-        spdlog::info("Success Connect Server {}, ip: {}, port: {}", i, ip, port);
-        break;
-      } else {
-        spdlog::info("Failed Connect Server  {}, ip: {}, port: {}", i, ip, port);
+
+    spdlog::info("Connect Server {}, ip: {}, port: {}", i, ip, port);
+    for (int tid = 0; tid < 50; tid++) {
+      while (true) {
+        if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        } else {
+          break;
+        }
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    group_is_runing = true;
   }
 
   for (int i = 0; i < peer_host_info_num; i++) {
     while (true) {
-      if (clients[i] -> call<bool>("serverSyncInit")) {
+      if (client_sync(4, i, 0) > 0) {
         spdlog::info("Server {} init Success", i);
         break;
       } else {
@@ -99,42 +74,32 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 
  // 指数退避
 const uint32_t retry_base_interval = 10; //单位毫秒
-const uint32_t max_retry_times = 0;
+const uint32_t max_retry_times = 3;
 
 static Package clientRemoteGet(int32_t select_column,
-          int32_t where_column, const void *column_key, size_t column_key_len) {
+          int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
   Package result;
   for (int i = 0; i < 3; i++) {
     int retry_time = 0;
     while (true) { // backoff
+      if (!client_is_runing[i]) break;
       if (retry_time > max_retry_times) { // 超过10次放弃retry，可能无法获得所有数据
         spdlog::error("network congestion!!!");
+        client_is_runing[i] = false;
         break;
       } else if (retry_time != 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(retry_base_interval << (retry_time - 1)));
       }
-      try {
-        // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
-        // if (!clients[i].has_connected()) {
-        //   break;
-        // }
-        if (!client_is_runing[i]) {
-          break;
-        }
-        spdlog::debug("Get Select {}, where: {}, from {}", select_column, where_column, i);
-        std::string key = std::string((char *)column_key, column_key_len);
-        Package package = clients[i] -> call<Package>("remoteGet", select_column, where_column, key, column_key_len);
-        result.size += package.size;
-        result.data += package.data;
-        break;
-      } catch (const std::exception &e) {
-        spdlog::error("Get Error {}", e.what());
-        clients[i] -> disable_auto_reconnect();
-        clients[i] -> close();
-        client_is_runing[i] = false;
-        if(clients[i] != nullptr) delete clients[i];
+      // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
+      spdlog::debug("Begin Remote Get Select {}, where: {}, from {}", select_column, where_column, i);
+      Package package = client_send(select_column, where_column, column_key, column_key_len, tid, i);
+      if (package.size == -1) {
+        retry_time++;
+        continue;
       }
-      retry_time++;
+      memcpy(result.data + result.size, package.data, package.size);
+      result.size += package.size;
+      break;
     }
   }
   return result;
@@ -144,7 +109,7 @@ static void deInitGroup() {
   group_is_deinit = true;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (clients[i] != nullptr && clients[i] -> call<bool>("serverSyncDeinit")) {
+      if (client_sync(5, i, 0) > 0) {
         spdlog::info("Server {} ready to deinit", i);
         break;
       } else {

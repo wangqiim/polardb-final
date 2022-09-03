@@ -89,8 +89,8 @@ void* thread_read(void* ctx)
 bool test_is_ok(void *ctx) {
     TestUser user;
     char res[2000*128];
-    user.id = 17000010;
-    user.salary = 170000200;
+    user.id = 100005;
+    user.salary = 100200;
     memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {4,13,13,5,22,35,18,6,82,59,22,21,42,19,11,71,72,51,69,22,94,104,22,39,21,24,43,5,55,21,110,20,71,10,89,1,60,47,7,68,38,55,74,96,71,35,5,63,36,4,12,30,22,7,21,49,15,6,25,8,8,5,7,79,61,87,92,75,6,25,17,23,20,57,20,17,13,38,26,3,44,29,23,59,16,9,51,67,3,36,10,71,93,12,38,25,15,13,71,34,22,60,9,82,54,72,109,20,54,1,47,5,27,42,6,14,33,23,22,81,12,23,19,34,17,25,17,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
@@ -101,7 +101,7 @@ bool test_is_ok(void *ctx) {
     //     return false;
     // }
     record_count = engine_read(ctx, Id, Salary, &user.salary, 8, res);
-    for(int i = 0; i<50; i++)
+    for(int i = 0; i<1; i++)
     std::cout << "查询 id = " << *(int64_t *)(res + i * 8) << " where salary = " << user.salary << " Count = " << record_count << std::endl;
     // if(record_count != 1) {
     //     return false;
@@ -179,9 +179,9 @@ void write_400M (void* ctx) {
     uint64_t id = threadId++;
     std::string file = "./Dataset/user" + std::to_string(id) + ".dat";
     std::ofstream outFile(file, std::ios::out | std::ios::binary);
-    for(unsigned long i = 0; i < 4000000UL; i++) {
+    for(unsigned long i = 0; i < 100000UL; i++) {
         TestUser user;
-        user.id = id * 4000000UL + i;
+        user.id = id * 100000UL + i;
         user.salary = user.id;
         memcpy(user.name,randstr(128).c_str(),128);
         memcpy(user.user_id,randstr(128).c_str(),128); 
@@ -193,8 +193,8 @@ void write_400M (void* ctx) {
 int main()
 {
     char *myIp = "127.0.0.1:9000";
-    char *server[2] = {"127.0.0.2:8080","127.0.0.3:8080"};
-    void* ctx = engine_init(myIp, server, 2, "/mnt/pmem0/pmemData", "./");
+    char *server[3] = {"127.0.0.1:9000","127.0.0.1:9000", "127.0.0.1:9000"};
+    void* ctx = engine_init(myIp, server, 3, "/mnt/pmem0/pmemData", "./");
     struct timeval t1,t2;
     double timeuse;
     gettimeofday(&t1,NULL);
@@ -214,5 +214,5 @@ int main()
     gettimeofday(&t2,NULL);
     timeuse = (t2.tv_sec - t1.tv_sec) * 1000 + (double)(t2.tv_usec - t1.tv_usec)/1000.0;
     std::cout<<"time = "<< timeuse << "ms" << std::endl;  //输出时间（单位：ｓ）
-
+    engine_deinit(ctx);
 }
