@@ -4,9 +4,6 @@
 #include <unordered_map>
 #include <mutex>
 #include "../tools/HashFunc/xxhash.h"
-#include "../tools/HashMap/EMHash/emhash5_int64_to_int64.h"
-#include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
-#include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 
 #include "oneapi/tbb/concurrent_unordered_map.h"
 
@@ -48,25 +45,6 @@ struct UserIdHash {
     }
 };
 
-// inplace char[128]
-class Str128 {
-public:
-  char data[128];
-	Str128(const char *str){
-    memcpy(data, str, 128);
-	}
-	bool operator==(const Str128 & p) const 
-	{
-    return memcmp(p.data, data, 128) == 0;
-	}  
-};
-
-struct Str128Hash {
-    size_t operator()(const Str128& rhs) const{
-      return XXH3_64bits(rhs.data, 128);
-    }
-};
-
 // 数据存储在pmem上, hashmap的key上存储一个指向pmem上UserId的指针
 class PmemUserId {
 public:
@@ -80,26 +58,15 @@ public:
 
 struct PmemUserIdHash {
     size_t operator()(const PmemUserId& pmem_user_id) const {
-      return hashfn(pmem_user_id.ptr_, 1);
+      return XXH3_64bits(pmem_user_id.ptr_, 128);
     }
 };
 
-// pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
-static tbb::concurrent_unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static tbb::concurrent_unordered_map<PmemUserId, uint32_t, PmemUserIdHash> uk[HASH_MAP_COUNT];
-static tbb::concurrent_unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT];
-
-// static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-// static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-// static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
-
-// static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-// static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-// static std::unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
-
-// static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
+static tbb::concurrent_unordered_map<uint64_t, uint32_t> pk;
+static tbb::concurrent_unordered_map<PmemUserId, uint32_t, PmemUserIdHash> uk;
+static tbb::concurrent_unordered_multimap<uint64_t, uint32_t> sk;
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
@@ -118,10 +85,9 @@ static void initIndex() {
   }
 
   for (int i = 0; i < HASH_MAP_COUNT; i++) {
-    // pthread_rwlock_init(&rwlock[i], NULL);
-    pk[i].reserve(4000000);
-    uk[i].reserve(4000000);
-    sk[i].reserve(4000000);
+    pk.reserve(INDEX_CAPACITY);
+    uk.reserve(INDEX_CAPACITY);
+    sk.reserve(INDEX_CAPACITY);
   }
   spdlog::info("Init Index End");
 }
@@ -130,67 +96,32 @@ static void initIndex() {
 // 1. recovery时调用，注意：目前的实现中，此时tuple指向的地址在pmem上
 // 2. write插入数据时调用，注意：目前的实现中，此时tuple指向的地址在pmem上
 static void insert(const char *tuple, size_t len, uint8_t tid) {
-    // pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
-    pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
-    uk[tid].insert(std::pair<PmemUserId, uint32_t>(PmemUserId(tuple + 8), pos));
-    sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
-    // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
-    // if (it != sk[tid].end()) {
-    //     it -> second.push_back(pos);
-    // } else {
-    //     sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
-    // }
+    pk.insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
+    uk.insert(std::pair<PmemUserId, uint32_t>(PmemUserId(tuple + 8), pos));
+    sk.insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
     thread_pos[tid]++;
-    // pthread_rwlock_unlock(&rwlock[tid]);
 } 
 
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      bool isFind = false;
-      // pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = pk[i].find(*(uint64_t *)(column_key));
-      if (it != pk[i].end()) {
-        isFind = true;
-      }
-      if (isFind) result.push_back(it->second);
-      // pthread_rwlock_unlock(&rwlock[i]);
+    auto it = pk.find(*(uint64_t *)(column_key));
+    if (it != pk.end()) {
+      result.push_back(it->second);
     }
   }
   if (where_column == Userid) {
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      bool isFind = false;
-      // pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = uk[i].find(PmemUserId((char *)column_key));
-      if (it != uk[i].end()) {
-        isFind = true;
-      } 
-      if (isFind) result.push_back(it->second);
-      // pthread_rwlock_unlock(&rwlock[i]);
-    }    
+    auto it = uk.find(PmemUserId((char *)column_key));
+    if (it != uk.end()) {
+      result.push_back(it->second);
+    } 
   }
   if (where_column == Salary) {
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      // bool isFind = false;
-      // pthread_rwlock_rdlock(&rwlock[i]);
-      auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
-      for (auto it = its.first; it != its.second; ++it) {
-        result.push_back(it->second);
-      }
-      // auto it = sk[i].find(*(uint64_t *)((char *)column_key));
-      // if (it != sk[i].end()) {
-      //   isFind = true;
-      // }
-      // if (isFind) {
-      //   for (int j = 0; j < it -> second.size(); j++) {
-      //     result.push_back(it -> second[j]);
-      //   }
-      // }
-      // pthread_rwlock_unlock(&rwlock[i]);
+    auto its = sk.equal_range(*(int64_t *)((char *)column_key));
+    for (auto it = its.first; it != its.second; ++it) {
+      result.push_back(it->second);
     }
   }
-
   return result;
 }

@@ -9,6 +9,9 @@ const uint64_t RECORD_SIZE = 272;
 //表空间大小
 const uint64_t TABLE_SIZE = 50000005;
 
+// 索引初始容量
+const uint64_t INDEX_CAPACITY = 2e8;
+
 const uint64_t COMMIT_FLAG_SIZE = 4;
 const uint64_t PER_THREAD_MAX_WRITE = 5e6; // 有的线程会写超过400W，这里取500万
 //哈希索引分块
