@@ -16,7 +16,7 @@ if (NOT BUILD_SHARED_LIBS)
     return()
 endif()
 
-add_library(tbbmalloc_proxy 
+add_library(tbbmalloc_proxy STATIC
     function_replacement.cpp
     proxy.cpp)
 
