@@ -12,6 +12,20 @@
 
 static uint32_t crypttable[0x500] = {0};
 
+uint32_t hashfn(const char *key, int type) {
+    uint8_t *k = (uint8_t *)key;
+    uint32_t seed1 = 0x7fed7fed;
+    uint32_t seed2 = 0xeeeeeeee;
+    uint32_t ch;
+    for(int i = 0; i < 128; i++) {
+        ch = *k++;
+        seed1 = crypttable[(type << 8) + ch] ^ (seed1 + seed2);
+        seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3;
+    }
+    return seed1;
+}
+
+// blizzard hash
 class UserId {
 public:
   uint32_t hashCode1;
@@ -24,28 +38,17 @@ public:
 	{
     return p.hashCode1 == hashCode1 && p.hashCode2 == hashCode2;
 	}
-  uint32_t hashfn(const char *key, int type) {
-      uint8_t *k = (uint8_t *)key;
-      uint32_t seed1 = 0x7fed7fed;
-      uint32_t seed2 = 0xeeeeeeee;
-      uint32_t ch;
-      for(int i = 0; i < 128; i++) {
-          ch = *k++;
-          seed1 = crypttable[(type << 8) + ch] ^ (seed1 + seed2);
-          seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3;
-      }
-      return seed1;
-  }
 };
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      uint64_t res = rhs.hashCode1 << 32;
+      uint64_t res = uint64_t(rhs.hashCode1) << 32;
       res |= rhs.hashCode2;
       return res;
     }
 };
 
+// inplace char[128]
 class Str128 {
 public:
   char data[128];
@@ -64,11 +67,28 @@ struct Str128Hash {
     }
 };
 
+// 数据存储在pmem上, hashmap的key上存储一个指向pmem上UserId的指针
+class PmemUserId {
+public:
+  const char *ptr_;
+  PmemUserId(const char *ptr): ptr_(ptr) {}
+	bool operator==(const PmemUserId& other) const 
+	{
+    return memcmp(ptr_, other.ptr_, 128) == 0;
+	}
+};
+
+struct PmemUserIdHash {
+    size_t operator()(const PmemUserId& pmem_user_id) const {
+      return hashfn(pmem_user_id.ptr_, 1);
+    }
+};
+
 // pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static tbb::concurrent_unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static tbb::concurrent_unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+static tbb::concurrent_unordered_map<PmemUserId, uint32_t, PmemUserIdHash> uk[HASH_MAP_COUNT];
 static tbb::concurrent_unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
@@ -107,13 +127,13 @@ static void initIndex() {
 }
 
 // 该方法有两处调用
-// 1. recovery时调用
-// 2. write插入数据时调用
+// 1. recovery时调用，注意：目前的实现中，此时tuple指向的地址在pmem上
+// 2. write插入数据时调用，注意：目前的实现中，此时tuple指向的地址在pmem上
 static void insert(const char *tuple, size_t len, uint8_t tid) {
     // pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
-    uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
+    uk[tid].insert(std::pair<PmemUserId, uint32_t>(PmemUserId(tuple + 8), pos));
     sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
     // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
     // if (it != sk[tid].end()) {
@@ -143,7 +163,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       bool isFind = false;
       // pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = uk[i].find(UserId((char *)column_key));
+      auto it = uk[i].find(PmemUserId((char *)column_key));
       if (it != uk[i].end()) {
         isFind = true;
       } 

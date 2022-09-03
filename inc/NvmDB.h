@@ -28,7 +28,8 @@ static void Put(const char *tuple, size_t len){
       spdlog::error("write_count overflow!");
     }
     writeTuple(tuple, len, tid);
-    insert(tuple, len, tid);
+    // insert时，传递pmem地址
+    insert(PBM[tid].address + PBM[tid].offset - RECORD_SIZE, len, tid);
     // note: write_count just used for log/debug
     if (write_count % 200000 == 0) {
       if (write_count % 1000000 == 0) {
