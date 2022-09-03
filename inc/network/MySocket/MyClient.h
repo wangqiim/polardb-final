@@ -46,7 +46,6 @@ Package client_send(uint8_t select_column,
 
 
   int len = read(clients[server][tid], &page, sizeof(page));
-
   if (len == 0) {
     page.size = -1;
     return page;

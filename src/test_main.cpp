@@ -101,7 +101,7 @@ bool test_is_ok(void *ctx) {
     //     return false;
     // }
     record_count = engine_read(ctx, Id, Salary, &user.salary, 8, res);
-    for(int i = 0; i<1; i++)
+    for(int i = 0; i<4; i++)
     std::cout << "查询 id = " << *(int64_t *)(res + i * 8) << " where salary = " << user.salary << " Count = " << record_count << std::endl;
     // if(record_count != 1) {
     //     return false;

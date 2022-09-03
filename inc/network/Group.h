@@ -98,7 +98,16 @@ static Package clientRemoteGet(int32_t select_column,
         retry_time++;
         continue;
       }
-      memcpy(result.data + result.size, package.data, package.size);
+      int local_data_len, remote_data_len;
+      if (select_column == 0 || select_column == 3) {
+        local_data_len = result.size * 8;
+        remote_data_len = package.size * 8;
+      }
+      else {
+        local_data_len = result.size * 128;
+        remote_data_len = package.size * 128;
+      }
+      memcpy(result.data + local_data_len, package.data, remote_data_len);
       result.size += package.size;
       break;
     }
