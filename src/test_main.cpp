@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sys/time.h>
 #include <atomic>
+#include <sstream>
+#include <iomanip>
 
 class TestUser
 {
@@ -19,6 +21,15 @@ public:
 enum TestColumn{Id=0,Userid,Name,Salary};
 
 #define NUM_THREADS 50
+
+std::string to_hex2(unsigned char* data, int len) {
+    std::stringstream ss;
+    ss << std::uppercase << std::hex << std::setfill('0');
+    for (int i = 0; i < len; i++) {
+        ss << std::setw(2) << static_cast<unsigned>(data[i]);
+    }
+    return ss.str();
+}
 
 std::string randstr(int max_len)
 {
@@ -101,7 +112,7 @@ bool test_is_ok(void *ctx) {
     //     return false;
     // }
     record_count = engine_read(ctx, Id, Salary, &user.salary, 8, res);
-    for(int i = 0; i<4; i++)
+    for(int i = 0; i<record_count; i++)
     std::cout << "查询 id = " << *(int64_t *)(res + i * 8) << " where salary = " << user.salary << " Count = " << record_count << std::endl;
     // if(record_count != 1) {
     //     return false;
@@ -115,23 +126,19 @@ bool test_is_ok(void *ctx) {
     //     return false;
     // }
     record_count = engine_read(ctx, Name, Userid, user.user_id, 128, res);
-    char name[128];
+    unsigned char name[128];
     memcpy(name, res, 128);
-    std::cout << "查询 name = ";
-    for(int i = 0; i < 128; i++) printf("%u-",name[i]);
-    std::cout << std::endl;
-    std::cout << "where user_id = ";
-    for(int i = 0; i < 128; i++) printf("%u-",user.user_id[i]);
-    std::cout << std::endl;
+    std::cout << "查询 name = " << to_hex2(name, 128) << std::endl;
+    std::cout << "where user_id = " << to_hex2(user.user_id, 128) << std::endl;
     std::cout << "Count = " << record_count << std::endl;
     // if(record_count != 1) {
     //     return false;
     // }
 
     record_count = engine_read(ctx, Userid, Id, &user.id, 8, res);
-    char userid[128];
+    unsigned char userid[128];
     memcpy(userid, res, 128);
-    std::cout << "查询 userid = " << userid << " where id = " << user.id << " Count = " << record_count << std::endl;
+    std::cout << "查询 userid = " << to_hex2(userid, 128) << " where id = " << user.id << " Count = " << record_count << std::endl;
     // user.id = 1;
     // user.salary = 100;
     // memcpy(&user.name,"hellow",6); 

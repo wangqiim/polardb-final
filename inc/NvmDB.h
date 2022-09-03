@@ -99,7 +99,7 @@ static Package remoteGet(int32_t select_column,
     uint64_t key = *(uint64_t *)(column_key);
     spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, key);
   } else {
-    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, column_key);
+    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, to_hex((unsigned char *)column_key, 128));
   }
   packge.size = Get(select_column, where_column, column_key, column_key_len, packge.data, false);
   if (packge.size > 0) {

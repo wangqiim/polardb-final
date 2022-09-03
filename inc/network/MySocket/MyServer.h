@@ -13,6 +13,17 @@
 #include <errno.h>
 #include <ctype.h>
 #include <exception> 
+#include <sstream>
+#include <iomanip>
+
+std::string to_hex(unsigned char* data, int len) {
+    std::stringstream ss;
+    ss << std::uppercase << std::hex << std::setfill('0');
+    for (int i = 0; i < len; i++) {
+        ss << std::setw(2) << static_cast<unsigned>(data[i]);
+    }
+    return ss.str();
+}
 
 struct s_info {
     sockaddr_in s_addr;
@@ -59,8 +70,18 @@ void *connect_client(void *arg) {
         }      
         uint8_t whereColum = *(uint8_t *)(buf + 1);
         char *column_key = buf + 2;
-        spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, column_key);
-        Package page = remoteGet(selectColum, whereColum, column_key, 0);
+
+        size_t column_key_len;
+        if (selectColum == 0 || selectColum == 3) {
+            column_key_len = 8;
+            spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
+        }
+        else {
+            column_key_len = 128; 
+            spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, to_hex((unsigned char *)column_key, column_key_len));
+        }
+
+        Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
         if (write(ts->fd, &page, sizeof(page)) < 0) {
             spdlog::error("server_socket write error");
         }

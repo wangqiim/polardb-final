@@ -80,6 +80,7 @@ const uint32_t max_retry_times = 3;
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
   Package result;
+  result.size = 0;
   for (int i = 0; i < 3; i++) {
     int retry_time = 0;
     while (true) { // backoff
