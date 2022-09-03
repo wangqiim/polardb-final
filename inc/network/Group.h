@@ -69,7 +69,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(3));
+  std::this_thread::sleep_for(std::chrono::seconds(15));
 }
 
  // 指数退避
@@ -118,5 +118,5 @@ static void deInitGroup() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(4));
+  std::this_thread::sleep_for(std::chrono::seconds(15));
 }
