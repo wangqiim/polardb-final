@@ -43,7 +43,7 @@ static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
     static thread_local uint8_t tid = 0;
     if (is_local == true && tid == 0) { // socket_server 也会调用该函数，防止tid溢出
-      getTid++;
+      tid = getTid++;
       if (tid >= 50) {
         spdlog::error("[Get] tid overflow, tid = {}", tid);
         exit(1);

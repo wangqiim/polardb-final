@@ -16,10 +16,10 @@ int create_connect(const char *ip, int port, int tid, int server) {
   serv_addr.sin_port = htons(port);
 
   if (connect(clients[server][tid], (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-    spdlog::error("Socket Connect Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
+    spdlog::warn("[create_connect] Socket Connect Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
     return -1;
   } else {
-    spdlog::debug("Socket Connect Success, ip: {}, port: {}, tid: {}", ip, port, tid);
+    spdlog::debug("[create_connect] Socket Connect Success, ip: {}, port: {}, tid: {}", ip, port, tid);
     return 0;
   }
   return 0;

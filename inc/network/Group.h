@@ -90,6 +90,9 @@ static Package clientRemoteGet(int32_t select_column,
         local_data_len = result.size * 128;
         remote_data_len = package.size * 128;
       }
+      if (local_data_len + remote_data_len > 2000 * 8) {
+        spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed 2000 * 8", local_data_len + remote_data_len);
+      }
       memcpy(result.data + local_data_len, package.data, remote_data_len);
       result.size += package.size;
       break;

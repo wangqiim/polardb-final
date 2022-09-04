@@ -51,7 +51,11 @@ void *connect_client(void *arg) {
     while (1) {
         size_len = read(ts->fd, buf, BUFSIZE);
         if (size_len <= 0) {
-            spdlog::error("[connect_client fail or close");
+            if (size_len == 0) {
+                spdlog::debug("[connect_client] close");
+            } else {
+                spdlog::error("[connect_client] read error");
+            }
             close(ts->fd);
             pthread_exit(NULL);
         }
@@ -93,7 +97,7 @@ void *connect_client(void *arg) {
             column_key_len = 128;
         }
         size_t data_size = page.size * column_key_len + 4; //数据长度加上Size
-        int writen_bytes = write(ts->fd, &page, data_size); // todo(wq): 没必要写整个page
+        int writen_bytes = write(ts->fd, &page, data_size);
         if (writen_bytes != data_size) {
             spdlog::error("[connect_client] server_socket write error, writen_bytes = {}, expected: {}", writen_bytes, data_size);
         }
