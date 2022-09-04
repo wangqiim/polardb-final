@@ -76,7 +76,7 @@ void *connect_client(void *arg) {
         char *column_key = buf + 2;
 
         size_t column_key_len;
-        if (selectColum == 0 || selectColum == 3) {
+        if (whereColum == 0 || whereColum == 3) {
             column_key_len = 8;
             spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
         } else {
@@ -87,8 +87,14 @@ void *connect_client(void *arg) {
             spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
         }
         Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
-        int writen_bytes = write(ts->fd, &page, sizeof(page)); // todo(wq): 没必要写整个page
-        if (writen_bytes != sizeof(page)) {
+        if (selectColum == 0 || selectColum == 3) {
+            column_key_len = 8;
+        } else {
+            column_key_len = 128;
+        }
+        size_t data_size = page.size * column_key_len + 4; //数据长度加上Size
+        int writen_bytes = write(ts->fd, &page, data_size); // todo(wq): 没必要写整个page
+        if (writen_bytes != data_size) {
             spdlog::error("server_socket write error, writen_bytes = {}, expected: ", writen_bytes, sizeof(page));
         }
     }

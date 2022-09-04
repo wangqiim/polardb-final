@@ -100,8 +100,8 @@ void* thread_read(void* ctx)
 bool test_is_ok(void *ctx) {
     TestUser user;
     char res[2000*128];
-    user.id = 100005;
-    user.salary = 100200;
+    user.id = 340000;
+    user.salary = 340000;
     memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {4,13,13,5,22,35,18,6,82,59,22,21,42,19,11,71,72,51,69,22,94,104,22,39,21,24,43,5,55,21,110,20,71,10,89,1,60,47,7,68,38,55,74,96,71,35,5,63,36,4,12,30,22,7,21,49,15,6,25,8,8,5,7,79,61,87,92,75,6,25,17,23,20,57,20,17,13,38,26,3,44,29,23,59,16,9,51,67,3,36,10,71,93,12,38,25,15,13,71,34,22,60,9,82,54,72,109,20,54,1,47,5,27,42,6,14,33,23,22,81,12,23,19,34,17,25,17,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
@@ -189,7 +189,7 @@ void write_400M (void* ctx) {
     for(unsigned long i = 0; i < 100000UL; i++) {
         TestUser user;
         user.id = id * 100000UL + i;
-        user.salary = user.id;
+        user.salary = user.id + user.id % 10000;
         memcpy(user.name,randstr(128).c_str(),128);
         memcpy(user.user_id,randstr(128).c_str(),128); 
         outFile.write((char *)&user, sizeof(user));

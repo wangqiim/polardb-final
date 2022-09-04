@@ -53,12 +53,25 @@ Package client_send(uint8_t select_column,
     spdlog::debug("Socket Send Server {} Success, tid: {}", server, tid);
   }
 
-  int len = read(clients[server][tid], &page, sizeof(page));
-  if (len != sizeof(page)) {
-    spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, sizeof(page));
+  int len = read(clients[server][tid], &page, 4);
+  if (len != 4) {
+    spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, 4);
     page.size = -1;
     return page;
   }
+  size_t value_len;
+  if (select_column == 0 || select_column == 3) {
+    value_len = 8 * page.size;
+  } else {
+    value_len = 128 * page.size;
+  }
+  len = read(clients[server][tid], page.data, value_len);
+  if (len != value_len) {
+    spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, value_len);
+    page.size = -1;
+    return page;
+  }
+
   return page;
 }
 
