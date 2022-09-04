@@ -38,7 +38,7 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      uint64_t res = rhs.hashCode1 << 32;
+      uint64_t res = uint64_t(rhs.hashCode1) << 32;
       res |= rhs.hashCode2;
       return res;
     }
@@ -65,11 +65,11 @@ struct Str128Hash {
 pthread_rwlock_t rwlock[50];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-// static emhash5::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
+// static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 static std::unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
 
 // static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
@@ -91,7 +91,7 @@ static void initIndex() {
   }
 
   for (int i = 0; i < HASH_MAP_COUNT; i++) {
-    // pthread_rwlock_init(&rwlock[i], NULL);
+    pthread_rwlock_init(&rwlock[i], NULL);
     pk[i].reserve(4000000);
     uk[i].reserve(4000000);
     sk[i].reserve(4000000);
@@ -122,25 +122,25 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
   std::vector<uint32_t> result;
   if (where_column == Id) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      bool isFind = false;
       pthread_rwlock_rdlock(&rwlock[i]);
       auto it = pk[i].find(*(uint64_t *)(column_key));
       if (it != pk[i].end()) {
-        isFind = true;
+        result.push_back(it->second);
+        pthread_rwlock_unlock(&rwlock[i]);
+        break;
       }
-      if (isFind) result.push_back(it->second);
       pthread_rwlock_unlock(&rwlock[i]);
     }
   }
   if (where_column == Userid) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      bool isFind = false;
       pthread_rwlock_rdlock(&rwlock[i]);
       auto it = uk[i].find(UserId((char *)column_key));
       if (it != uk[i].end()) {
-        isFind = true;
+        result.push_back(it->second);
+        pthread_rwlock_unlock(&rwlock[i]);
+        break;
       } 
-      if (isFind) result.push_back(it->second);
       pthread_rwlock_unlock(&rwlock[i]);
     }    
   }
@@ -152,15 +152,6 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       for (auto it = its.first; it != its.second; ++it) {
         result.push_back(it->second);
       }
-      // auto it = sk[i].find(*(uint64_t *)((char *)column_key));
-      // if (it != sk[i].end()) {
-      //   isFind = true;
-      // }
-      // if (isFind) {
-      //   for (int j = 0; j < it -> second.size(); j++) {
-      //     result.push_back(it -> second[j]);
-      //   }
-      // }
       pthread_rwlock_unlock(&rwlock[i]);
     }
   }
