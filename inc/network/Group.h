@@ -14,6 +14,7 @@ static bool serverSyncInit() {
 }
 
 static bool serverSyncDeinit() {
+  spdlog::debug("[serverSyncDeinit] group_is_deinit = {}", group_is_deinit.load());
   return group_is_deinit.load();
 }
 
