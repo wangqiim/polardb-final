@@ -66,7 +66,7 @@ void *connect_client(void *arg) {
             }
             int writen_bytes = write(ts->fd, &result, sizeof(result));
             if (writen_bytes < 0) {
-                spdlog::error("server_socket sync error");
+                spdlog::error("[connect_client] server_socket sync error, errno = {}", errno);
             } else if (writen_bytes != 1) {
                 spdlog::error("[connect_client] sync write fail, writen_bytes = {}, expected = {}", writen_bytes, 1);
             }
@@ -78,10 +78,10 @@ void *connect_client(void *arg) {
         size_t column_key_len;
         if (whereColum == 0 || whereColum == 3) {
             column_key_len = 8;
-            spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
+            spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
         } else {
             column_key_len = 128; 
-            spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, to_hex((unsigned char *)column_key, column_key_len));
+            spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, to_hex((unsigned char *)column_key, column_key_len));
         }
         if (size_len != 2 + column_key_len) {
             spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
@@ -95,7 +95,7 @@ void *connect_client(void *arg) {
         size_t data_size = page.size * column_key_len + 4; //数据长度加上Size
         int writen_bytes = write(ts->fd, &page, data_size); // todo(wq): 没必要写整个page
         if (writen_bytes != data_size) {
-            spdlog::error("server_socket write error, writen_bytes = {}, expected: ", writen_bytes, sizeof(page));
+            spdlog::error("[connect_client] server_socket write error, writen_bytes = {}, expected: {}", writen_bytes, data_size);
         }
     }
 }

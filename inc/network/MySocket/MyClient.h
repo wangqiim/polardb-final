@@ -15,13 +15,6 @@ int create_connect(const char *ip, int port, int tid, int server) {
   serv_addr.sin_addr.s_addr = inet_addr(ip);//注意，这里是服务端的ip和端口
   serv_addr.sin_port = htons(port);
 
-  struct timeval timeout = {3,0};
-  if (setsockopt(clients[server][tid], SOL_SOCKET,SO_SNDTIMEO, (char *)&timeout,sizeof(struct timeval)) < 0) {
-    spdlog::error("set client socket send time out error");
-  }
-  if (setsockopt(clients[server][tid], SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(struct timeval)) < 0) {
-    spdlog::error("set client socket recv time out error");
-  }
   if (connect(clients[server][tid], (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
     spdlog::error("Socket Connect Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
     return -1;
@@ -42,7 +35,11 @@ Package client_send(uint8_t select_column,
   memcpy(send_buf + 2, column_key, column_key_len);
   int send_bytes = send(clients[server][tid], send_buf, buf_len, 0); 
   if (send_bytes <= 0) {
-    spdlog::error("Socket Send Server {} Failure or Time out, tid: {}", server, tid);
+    if (send_bytes == 0) { // 远端关闭 eof
+      spdlog::debug("[client_send] read eof!");
+    } else {
+      spdlog::warn("[client_send] Socket Send Server {} Failure, tid: {}, errno = {}", server, tid, errno);
+    }
     page.size = -1;
     return page;
   } else {
@@ -50,12 +47,12 @@ Package client_send(uint8_t select_column,
       spdlog::error("[client_send] send fail, send_bytes = {}, expected len: {}", send_bytes, buf_len);
       exit(1);
     }
-    spdlog::debug("Socket Send Server {} Success, tid: {}", server, tid);
+    spdlog::debug("[client_send] Socket Send Server {} Success, tid: {}", server, tid);
   }
 
   int len = read(clients[server][tid], &page, 4);
   if (len != 4) {
-    spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, 4);
+    spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, 4);
     page.size = -1;
     return page;
   }
@@ -67,7 +64,11 @@ Package client_send(uint8_t select_column,
   }
   len = read(clients[server][tid], page.data, value_len);
   if (len != value_len) {
-    spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, value_len);
+    if (len >= 0) {
+      spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, value_len);
+    } else {
+      spdlog::error("[client_send] read fail, len = {}, expected: {}, errno = {}", len, value_len, errno);
+    }
     page.size = -1;
     return page;
   }
@@ -75,14 +76,17 @@ Package client_send(uint8_t select_column,
   return page;
 }
 
-// sync_tid = 50;
+// return_value: 
+// 0: false
+// 1: true
+// -1: error
 int client_sync(uint8_t sync_type, int server, int sync_tid) {
   bool result;
   if (send(clients[server][sync_tid], &sync_type, 1, 0) <= 0) {
-    spdlog::error("Socket Send Server {} Failure, sync_tid: {}", server, sync_tid);
+    spdlog::warn("[client_sync] Socket Send Server {} Failure, sync_tid: {}", server, sync_tid);
     return -1;
   } else {
-    spdlog::debug("Socket Send Server {} Success, sync_tid: {}", server, sync_tid);
+    spdlog::debug("[client_sync] Socket Send Server {} Success, sync_tid: {}", server, sync_tid);
   }
 
   int len = read(clients[server][sync_tid], &result, sizeof(result));
