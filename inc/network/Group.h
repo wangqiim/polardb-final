@@ -1,19 +1,20 @@
 #pragma once
 #include <cstdio>
 #include <string>
+#include <atomic>
 #include "Config.h"
 #include "spdlog/spdlog.h"
 #include "./MySocket/MyClient.h"
 
-bool group_is_runing = false;
-bool group_is_deinit = false;
-bool client_is_running[3];
+std::atomic<bool> group_is_runing = {false};
+std::atomic<bool> group_is_deinit = {false};
+std::atomic<bool> client_is_running[PeerHostInfoNum];
 static bool serverSyncInit() {
-  return group_is_runing;
+  return group_is_runing.load();
 }
 
 static bool serverSyncDeinit() {
-  return group_is_deinit;
+  return group_is_deinit.load();
 }
 
 void *runServer(void *input) {
@@ -46,10 +47,10 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         }
       }
     }
-    client_is_running[i] = true;
+    client_is_running[i].store(true);
   }
 
-  group_is_runing = true;
+  group_is_runing.store(true);
   
   for (int i = 0; i < peer_host_info_num; i++) {
     while (true) {
@@ -71,12 +72,12 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < 3; i++) {
     while (true) { // backoff
-      if (!client_is_running[i]) break;
+      if (!client_is_running[i].load()) break;
       // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
       spdlog::debug("Begin Remote Get Select {}, where: {}, from {}", select_column, where_column, i);
       Package package = client_send(select_column, where_column, column_key, column_key_len, tid, i);
       if (package.size == -1) {
-        client_is_running[i] = false;
+        client_is_running[i].store(false);
         break;
       }
       int local_data_len, remote_data_len;
@@ -97,10 +98,10 @@ static Package clientRemoteGet(int32_t select_column,
 }
 
 static void deInitGroup() {
-  group_is_deinit = true;
+  group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (!client_is_running[i]) break;
+      if (!client_is_running[i].load()) break;
       int ret = client_sync(5, i, 0);
       if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);
@@ -114,5 +115,5 @@ static void deInitGroup() {
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  std::this_thread::sleep_for(std::chrono::seconds(4));
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 }
