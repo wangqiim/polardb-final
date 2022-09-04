@@ -39,7 +39,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     port = s.substr(flag + 1, s.length());
 
     spdlog::info("Connect Server {}, ip: {}, port: {}", i, ip, port);
-    for (int tid = 0; tid < 50; tid++) {
+    for (int tid = 0; tid <= 50; tid++) { // 50 tid + 1 sync tid
       while (true) {
         if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -55,7 +55,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   
   for (int i = 0; i < peer_host_info_num; i++) {
     while (true) {
-      if (client_sync(4, i, 0) > 0) {
+      if (client_sync(4, i, SYNC_TID) > 0) {
         spdlog::info("Server {} init Success", i);
         break;
       } else {
@@ -103,7 +103,7 @@ static void deInitGroup() {
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
       if (!client_is_running[i].load()) break;
-      int ret = client_sync(5, i, 0);
+      int ret = client_sync(5, i, SYNC_TID);
       if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);
         break;

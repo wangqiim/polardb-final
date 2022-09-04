@@ -2,7 +2,7 @@
 #include <exception>
 #include "./MyServer.h"
 
-static int clients[3][50];
+static int clients[3][51]; // clients[i][50] 仅仅用来同步
 
 int create_connect(const char *ip, int port, int tid, int server) {
   if ( (clients[server][tid] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -54,7 +54,7 @@ Package client_send(uint8_t select_column,
   }
 
   int len = read(clients[server][tid], &page, sizeof(page));
-  if (len <= 0) {
+  if (len != sizeof(page)) {
     spdlog::error("[client_send] read fail or time out, len = {}, expected: {}", len, sizeof(page));
     page.size = -1;
     return page;
@@ -62,16 +62,17 @@ Package client_send(uint8_t select_column,
   return page;
 }
 
-int client_sync(uint8_t sync_type, int server, int tid) {
+// sync_tid = 50;
+int client_sync(uint8_t sync_type, int server, int sync_tid) {
   bool result;
-  if (send(clients[server][tid], &sync_type, 1, 0) <= 0) {
-    spdlog::error("Socket Send Server {} Failure, tid: {}", server, tid);
+  if (send(clients[server][sync_tid], &sync_type, 1, 0) <= 0) {
+    spdlog::error("Socket Send Server {} Failure, sync_tid: {}", server, sync_tid);
     return -1;
   } else {
-    spdlog::debug("Socket Send Server {} Success, tid: {}", server, tid);
+    spdlog::debug("Socket Send Server {} Success, sync_tid: {}", server, sync_tid);
   }
 
-  int len = read(clients[server][tid], &result, sizeof(result));
+  int len = read(clients[server][sync_tid], &result, sizeof(result));
 
   if (len <= 0) {
     return -1;
