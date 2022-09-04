@@ -7,7 +7,7 @@
 
 bool group_is_runing = false;
 bool group_is_deinit = false;
-
+bool client_is_running[3];
 static bool serverSyncInit() {
   return group_is_runing;
 }
@@ -46,6 +46,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         }
       }
     }
+    client_is_running[i] = true;
   }
 
   group_is_runing = true;
@@ -70,10 +71,12 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < 3; i++) {
     while (true) { // backoff
+      if (!client_is_running[i]) break;
       // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
       spdlog::debug("Begin Remote Get Select {}, where: {}, from {}", select_column, where_column, i);
       Package package = client_send(select_column, where_column, column_key, column_key_len, tid, i);
       if (package.size == -1) {
+        client_is_running[i] = false;
         break;
       }
       int local_data_len, remote_data_len;
@@ -97,11 +100,16 @@ static void deInitGroup() {
   group_is_deinit = true;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (client_sync(5, i, 0) > 0) {
+      if (!client_is_running[i]) break;
+      int ret = client_sync(5, i, 0);
+      if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);
         break;
-      } else {
+      } else if (ret == 0) {
         spdlog::info("Server {} not ready to deinit", i);
+      } else {
+        spdlog::info("Server {} is kill", i);
+        break;
       }
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
