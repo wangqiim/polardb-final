@@ -50,6 +50,10 @@ void *connect_client(void *arg) {
     char buf[BUFSIZE];
     while (1) {
         size_len = read(ts->fd, buf, BUFSIZE);
+        if (size_len < 0) {
+            spdlog::error("[connect_client need handle read fail");
+            exit(1);
+        }
         if (size_len == 0) {
             close(ts->fd);
             pthread_exit(NULL);
@@ -63,11 +67,14 @@ void *connect_client(void *arg) {
             } else {
                 result = serverSyncDeinit();
             }
-            if (write(ts->fd, &result, sizeof(result)) < 0) {
+            int writen_bytes = write(ts->fd, &result, sizeof(result));
+            if (writen_bytes < 0) {
                 spdlog::error("server_socket sync error");
+            } else if (writen_bytes != 1) {
+                spdlog::error("[connect_client] sync write fail, writen_bytes = {}, expected = {}", writen_bytes, 1);
             }
             continue;            
-        }      
+        }
         uint8_t whereColum = *(uint8_t *)(buf + 1);
         char *column_key = buf + 2;
 
@@ -75,15 +82,17 @@ void *connect_client(void *arg) {
         if (selectColum == 0 || selectColum == 3) {
             column_key_len = 8;
             spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
-        }
-        else {
+        } else {
             column_key_len = 128; 
             spdlog::debug("select = {}, where = {}, key = {}",selectColum, whereColum, to_hex((unsigned char *)column_key, column_key_len));
         }
-
+        if (size_len != 2 + column_key_len) {
+            spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
+        }
         Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
-        if (write(ts->fd, &page, sizeof(page)) < 0) {
-            spdlog::error("server_socket write error");
+        int writen_bytes = write(ts->fd, &page, sizeof(page)); // todo(wq): 没必要写整个page
+        if (writen_bytes != sizeof(page)) {
+            spdlog::error("server_socket write error, writen_bytes = {}, expected: ", writen_bytes, sizeof(page));
         }
     }
 }
@@ -115,7 +124,7 @@ static void my_server_run(const char *ip, int port) {
         spdlog::debug("bind socket success");
     }
 
-    if (listen(server_socket, 127) < 0) {
+    if (listen(server_socket, 127) < 0) { // todo(wq): 需要大于150吗？
         spdlog::error("listen socket error, ip {}", ip);
     } else {
         spdlog::debug("listen socket success");

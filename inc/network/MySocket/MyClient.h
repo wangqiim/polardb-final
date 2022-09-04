@@ -33,9 +33,14 @@ Package client_send(uint8_t select_column,
   memcpy(send_buf + 1, &where_column, 1);
   memcpy(send_buf + 2, column_key, column_key_len);
   try {
-    if (send(clients[server][tid], send_buf, buf_len, 0) < 0) {
+    int send_bytes = send(clients[server][tid], send_buf, buf_len, 0); 
+    if (send_bytes < 0) {
       spdlog::error("Socket Send Server {} Failure, tid: {}", server, tid);
     } else {
+      if (send_bytes != buf_len) {
+        spdlog::error("[client_send] send fail, send_bytes = {}, expected len: {}", send_bytes, buf_len);
+        exit(1);
+      }
       spdlog::debug("Socket Send Server {} Success, tid: {}", server, tid);
     }
   } catch (std::exception& e) {  
@@ -46,7 +51,8 @@ Package client_send(uint8_t select_column,
 
 
   int len = read(clients[server][tid], &page, sizeof(page));
-  if (len == 0) {
+  if (len <= 0) {
+    spdlog::error("[client_send] read fail, len = {}, expected: {}", len, sizeof(page));
     page.size = -1;
     return page;
   }
