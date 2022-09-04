@@ -50,11 +50,8 @@ void *connect_client(void *arg) {
     char buf[BUFSIZE];
     while (1) {
         size_len = read(ts->fd, buf, BUFSIZE);
-        if (size_len < 0) {
-            spdlog::error("[connect_client need handle read fail");
-            exit(1);
-        }
-        if (size_len == 0) {
+        if (size_len <= 0) {
+            spdlog::error("[connect_client fail or close");
             close(ts->fd);
             pthread_exit(NULL);
         }
