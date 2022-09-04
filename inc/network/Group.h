@@ -6,6 +6,8 @@
 #include "spdlog/spdlog.h"
 #include "./MySocket/MyClient.h"
 
+std::string global_peer_host_info[PeerHostInfoNum];
+
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
 std::atomic<bool> client_is_running[PeerHostInfoNum];
@@ -26,12 +28,29 @@ void *runServer(void *input) {
   my_server_run(ip.c_str(), stoi(port));
 }
 
+// 该函数只会被超出50的tid调用一次
+// must success, without retry
+static void mustAddConnect(int tid) {
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    std::string s = global_peer_host_info[i];
+    std::string ip, port;
+    int flag = s.find(":");
+    ip = s.substr(0,flag);
+    port = s.substr(flag + 1, s.length());
+    if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) { // 可能节点被kill掉了，不用重试
+      spdlog::warn("[mustAddConnect] tid: {} add connect fail, errno = {}", tid, errno);
+    } else {
+      spdlog::debug("[mustAddConnect] tid: {} add connect");
+    }
+  }
+}
 
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
   pthread_t serverId;
   int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
 
   for (int i = 0; i < peer_host_info_num; i++) {
+    global_peer_host_info[i] = std::string(peer_host_info[i]);
     std::string s = std::string(peer_host_info[i]);
     std::string ip, port;
     int flag = s.find(":");
@@ -39,13 +58,20 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     port = s.substr(flag + 1, s.length());
 
     spdlog::info("Connect Server {}, ip: {}, port: {}", i, ip, port);
-    for (int tid = 0; tid <= 50; tid++) { // 50 tid + 1 sync tid
+    for (int tid = 0; tid < 50; tid++) { // 50 tid
       while (true) {
         if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
         } else {
           break;
         }
+      }
+    }
+    while (true) { // sync tid
+      if (create_connect(ip.c_str(), stoi(port), SYNC_TID, i) < 0) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      } else {
+        break;
       }
     }
     client_is_running[i].store(true);

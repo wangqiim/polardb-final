@@ -19,7 +19,7 @@ const uint64_t PMEM_FILE_COUNT = 50;
 //有3个peer
 const int PeerHostInfoNum = 3;
 
-const int SYNC_TID = 50;
+const int SYNC_TID = 100;
 
 enum Column{Id=0,Userid,Name,Salary};
 

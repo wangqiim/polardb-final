@@ -2,7 +2,8 @@
 #include <exception>
 #include "./MyServer.h"
 
-static int clients[3][51]; // clients[i][50] 仅仅用来同步
+// 初始化时，初始化前50 tid对应的客户端，以及最后一个客户端（用来同步init/deinit）,剩余的当读线程来的时候，初始化
+static int clients[3][SYNC_TID + 1]; // clients[i][SYNC_TID] 仅仅用来同步
 
 int create_connect(const char *ip, int port, int tid, int server) {
   if ( (clients[server][tid] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {

@@ -42,13 +42,18 @@ static std::atomic<uint8_t> getTid(0);
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
     static thread_local uint8_t tid = 0;
+    // 1. 设置tid
     if (is_local == true && tid == 0) { // socket_server 也会调用该函数，防止tid溢出
       tid = getTid++;
       if (tid >= 50) {
-        spdlog::error("[Get] tid overflow, tid = {}", tid);
-        exit(1);
+        if (tid >= SYNC_TID) {
+          spdlog::error("[Get] tid overflow, tid = {}", tid);
+          exit(1);
+        }
+        mustAddConnect(tid);
       }
     }
+    // 2. 输出一些log来debug
     static thread_local int local_read_count = 0;
     static thread_local int remote_read_count = 0;
     if (is_local) {
@@ -68,6 +73,7 @@ static size_t Get(int32_t select_column,
         spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
+    // 3. 尝试从本地读
     std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
     uint32_t result_bytes = 0;
     if (posArray.size() > 0){
@@ -88,6 +94,7 @@ static size_t Get(int32_t select_column,
       }
       if (where_column != Salary) return posArray.size();
     }
+    // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((posArray.size() == 0 || where_column == Salary) && is_local) {
       Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
       int dataSize = 0;
