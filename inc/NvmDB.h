@@ -1,13 +1,40 @@
 #pragma once
 #include <cstdint>
 #include <cstdio>
+#include <cmath>
+#include <algorithm>
 #include "./network/Group.h"
 #include "./store/NvmStore.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
 
+std::atomic<uint64_t> read_local_cnt[3][3];
+std::atomic<uint64_t> read_remote_cnt[3][3];
+
+uint64_t local_write_max_pk[50];
+uint64_t local_write_min_pk[50];
+uint64_t local_write_max_sk[50];
+uint64_t local_write_min_sk[50];
+
+uint64_t local_read_max_pk[50]; 
+uint64_t local_read_min_pk[50];
+uint64_t local_read_max_sk[50];
+uint64_t local_read_min_sk[50];
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
+    {
+      for (int i = 0; i < 50; i++) {
+        local_write_max_pk[i] = 0;
+        local_write_max_sk[i] = 0;
+        local_read_max_pk[i] = 0;
+        local_read_max_sk[i] = 0;
+        local_write_min_pk[i] = UINT64_MAX;
+        local_write_min_sk[i] = UINT64_MAX;
+        local_read_min_pk[i] = UINT64_MAX;
+        local_read_min_sk[i] = UINT64_MAX;
+      }
+    }
     spdlog::info("[initNvmDB] NvmDB Init Begin");
     initIndex();
     initStore(aep_dir, disk_dir);
@@ -29,6 +56,14 @@ static void Put(const char *tuple, size_t len){
     }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
+    { // 线程不安全的
+      uint64_t pk = *(uint64_t *)tuple;
+      uint64_t sk = *(uint64_t *)(tuple + 264);
+      local_write_max_pk[tid] = std::max(pk, local_write_max_pk[tid]);
+      local_write_min_pk[tid] = std::min(pk, local_write_min_pk[tid]);
+      local_write_max_sk[tid] = std::max(sk, local_write_max_sk[tid]);
+      local_write_min_sk[tid] = std::min(sk, local_write_min_sk[tid]);
+    }
     // note: write_count just used for log/debug
     if (write_count % 100000 == 0) {
       if (write_count % 1000000 == 0) {
@@ -57,6 +92,18 @@ static size_t Get(int32_t select_column,
     static thread_local int local_read_count = 0;
     static thread_local int remote_read_count = 0;
     if (is_local) {
+      read_local_cnt[select_column][where_column]++;
+      if (tid < 50) {
+        if (where_column == Id) {
+          uint64_t pk = *(uint64_t *)(column_key);
+          local_read_max_pk[tid] = std::max(pk, local_read_max_pk[tid]);
+          local_read_min_pk[tid] = std::min(pk, local_read_min_pk[tid]);
+        } else if (where_column == Salary) {
+          uint64_t sk = *(uint64_t *)(column_key);
+          local_read_max_sk[tid] = std::max(sk, local_read_max_sk[tid]);
+          local_read_min_sk[tid] = std::min(sk, local_read_min_sk[tid]);
+        }
+      }
       local_read_count++;
       if (local_read_count == 1) {
         spdlog::info("first call local_read_count once");
@@ -96,6 +143,7 @@ static size_t Get(int32_t select_column,
     }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((posArray.size() == 0 || where_column == Salary) && is_local) {
+      read_remote_cnt[select_column][where_column]++;
       Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
@@ -130,6 +178,52 @@ static Package remoteGet(int32_t select_column,
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
+  spdlog::info("------ log local read type --------");
+  for (int select_column = 0; select_column < 3; select_column++) {
+    for (int where_column = 0; where_column < 3; where_column++) {
+      spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_local_cnt[select_column][where_column]);
+      spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_remote_cnt[select_column][where_column]);
+    }
+  }
+  spdlog::info("------ log local write max/min pk/sk -------");
+  uint64_t total_local_write_max_pk = 0;
+  uint64_t total_local_write_min_pk = UINT64_MAX;
+  uint64_t total_local_write_max_sk = 0;
+  uint64_t total_local_write_min_sk = UINT64_MAX;
+  for (int i = 0; i < 50; i++) {
+    spdlog::info("local_write_max_pk[{}] = {}", i, local_write_max_pk[i]);
+    spdlog::info("local_write_min_pk[{}] = {}", i, local_write_min_pk[i]);
+    spdlog::info("local_write_max_sk[{}] = {}", i, local_write_max_sk[i]);
+    spdlog::info("local_write_min_sk[{}] = {}", i, local_write_min_sk[i]);
+    total_local_write_max_pk = std::max(total_local_write_max_pk, local_write_max_pk[i]);
+    total_local_write_min_pk = std::min(total_local_write_min_pk, local_write_min_pk[i]);
+    total_local_write_max_sk = std::max(total_local_write_max_sk, local_write_max_sk[i]);
+    total_local_write_min_sk = std::min(total_local_write_min_sk, local_write_min_sk[i]);
+  }
+  spdlog::info("total_local_write_max_pk = {}", total_local_write_max_pk);
+  spdlog::info("total_local_write_min_pk = {}", total_local_write_min_pk);
+  spdlog::info("total_local_write_max_sk = {}", total_local_write_max_sk);
+  spdlog::info("total_local_write_min_sk = {}", total_local_write_min_sk);
 
+  spdlog::info("--------log local read max/min pk/sk----------------");
+  uint64_t total_local_read_max_pk = 0;
+  uint64_t total_local_read_min_pk = UINT64_MAX;
+  uint64_t total_local_read_max_sk = 0;
+  uint64_t total_local_read_min_sk = UINT64_MAX;
+  for (int i = 0; i < 50; i++) {
+    spdlog::info("local_read_max_pk[{}] = {}", i, local_read_max_pk[i]);
+    spdlog::info("local_read_min_pk[{}] = {}", i, local_read_min_pk[i]);
+    spdlog::info("local_read_max_sk[{}] = {}", i, local_read_max_sk[i]);
+    spdlog::info("local_read_min_sk[{}] = {}", i, local_read_min_sk[i]);
+    total_local_read_max_pk = std::max(total_local_read_max_pk, local_read_max_pk[i]);
+    total_local_read_min_pk = std::min(total_local_read_min_pk, local_read_min_pk[i]);
+    total_local_read_max_sk = std::max(total_local_read_max_sk, local_read_max_sk[i]);
+    total_local_read_min_sk = std::min(total_local_read_min_sk, local_read_min_sk[i]);
+  }
+  spdlog::info("total_local_read_max_pk = {}", total_local_read_max_pk);
+  spdlog::info("total_local_read_min_pk = {}", total_local_read_min_pk);
+  spdlog::info("total_local_read_max_sk = {}", total_local_read_max_sk);
+  spdlog::info("total_local_read_min_sk = {}", total_local_read_min_sk);
+  spdlog::info("------------------------------------------------------");
   spdlog::info("NvmDB deinit done");
 }
