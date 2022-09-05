@@ -28,7 +28,7 @@ public:
       uint32_t seed1 = 0x7fed7fed;
       uint32_t seed2 = 0xeeeeeeee;
       uint32_t ch;
-      for(int i = 0; i < 128; i++) {
+      for(int i = 0; i < 64; i++) {
           ch = *k++;
           seed1 = crypttable[(type << 8) + ch] ^ (seed1 + seed2);
           seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3;
