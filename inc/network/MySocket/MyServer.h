@@ -1,6 +1,7 @@
 #pragma mark once
 #include <sys/types.h> /* See NOTES */
 #include <sys/socket.h>
+#include <netinet/tcp.h> 
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
@@ -86,7 +87,7 @@ void *connect_client(void *arg) {
             spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
         }
         Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
-        
+
         if (selectColum == 0 || selectColum == 3) {
             column_key_len = 8;
         } else {
@@ -112,6 +113,10 @@ static void my_server_run(const char *ip, int port) {
         spdlog::error("set socket error");
     } else {
         spdlog::debug("set socket success");
+    }
+    int on = 1;
+    if (setsockopt(server_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
+        spdlog::error("set socket Close Nagle  error");
     }
 
     sockaddr_in addr, client;

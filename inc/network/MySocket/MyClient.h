@@ -9,6 +9,11 @@ int create_connect(const char *ip, int port, int tid, int server) {
   if ( (clients[server][tid] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     spdlog::error("Socket Create Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
     return -1;
+  }
+
+  int on = 1;
+  if (setsockopt(clients[server][tid], IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
+      spdlog::error("set socket Close Nagle  error");
   } 
   struct sockaddr_in serv_addr;//首先要指定一个服务端的ip地址+端口，表明是向哪个服务端发起请求
   memset(&serv_addr, 0, sizeof(serv_addr));
