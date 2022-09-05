@@ -115,8 +115,7 @@ static size_t Get(int32_t select_column,
       if (where_column == 1) {
         char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
-        memcpy(hash_colum_key, &uid.hashCode1, 4);
-        memcpy(hash_colum_key + 4, &uid.hashCode2, 4);
+        memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid);
       } else {
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);

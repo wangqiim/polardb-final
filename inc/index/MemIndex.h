@@ -7,21 +7,20 @@
 #include "../tools/HashMap/EMHash/emhash5_int64_to_int64.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
+#include "../tools/DenseMap/unordered_dense.h"
 
 static uint32_t crypttable[0x500] = {0};
 
 class UserId {
 public:
-  uint32_t hashCode1;
-  uint32_t hashCode2;
+  uint64_t hashCode;
   UserId() {}
 	UserId(const char *str){
-    hashCode1  = hashfn(str, 1);
-    hashCode2 =  hashfn(str, 2);
+    hashCode = ankerl::unordered_dense::detail::wyhash::hash(str, 128);
 	}
 	bool operator==(const UserId & p) const 
 	{
-    return p.hashCode1 == hashCode1 && p.hashCode2 == hashCode2;
+    return p.hashCode == hashCode;
 	}
   uint32_t hashfn(const char *key, int type) {
       uint8_t *k = (uint8_t *)key;
@@ -39,9 +38,7 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      uint64_t res = uint64_t(rhs.hashCode1) << 32;
-      res |= rhs.hashCode2;
-      return res;
+      return rhs.hashCode;
     }
 };
 
@@ -138,8 +135,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     if(is_local) {
       uid = UserId((char *)column_key);
     } else {
-      memcpy(&uid.hashCode1, (char *)column_key, 4);
-      memcpy(&uid.hashCode2, (char *)column_key + 4, 4);
+      memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       pthread_rwlock_rdlock(&rwlock[i]);
