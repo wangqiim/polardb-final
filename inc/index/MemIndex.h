@@ -103,7 +103,7 @@ static void initIndex() {
 // 1. recovery时调用
 // 2. write插入数据时调用
 static void insert(const char *tuple, size_t len, uint8_t tid) {
-    pthread_rwlock_wrlock(&rwlock[tid]);
+    // pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
     uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
@@ -115,44 +115,44 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     //     sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
     // }
     thread_pos[tid]++;
-    pthread_rwlock_unlock(&rwlock[tid]);
+    // pthread_rwlock_unlock(&rwlock[tid]);
 } 
 
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      pthread_rwlock_rdlock(&rwlock[i]);
+      // pthread_rwlock_rdlock(&rwlock[i]);
       auto it = pk[i].find(*(uint64_t *)(column_key));
       if (it != pk[i].end()) {
         result.push_back(it->second);
-        pthread_rwlock_unlock(&rwlock[i]);
+        // pthread_rwlock_unlock(&rwlock[i]);
         break;
       }
-      pthread_rwlock_unlock(&rwlock[i]);
+      // pthread_rwlock_unlock(&rwlock[i]);
     }
   }
   if (where_column == Userid) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      pthread_rwlock_rdlock(&rwlock[i]);
+      // pthread_rwlock_rdlock(&rwlock[i]);
       auto it = uk[i].find(UserId((char *)column_key));
       if (it != uk[i].end()) {
         result.push_back(it->second);
-        pthread_rwlock_unlock(&rwlock[i]);
+        // pthread_rwlock_unlock(&rwlock[i]);
         break;
       } 
-      pthread_rwlock_unlock(&rwlock[i]);
+      // pthread_rwlock_unlock(&rwlock[i]);
     }    
   }
   if (where_column == Salary) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       // bool isFind = false;
-      pthread_rwlock_rdlock(&rwlock[i]);
+      // pthread_rwlock_rdlock(&rwlock[i]);
       auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
       for (auto it = its.first; it != its.second; ++it) {
         result.push_back(it->second);
       }
-      pthread_rwlock_unlock(&rwlock[i]);
+      // pthread_rwlock_unlock(&rwlock[i]);
     }
   }
 
