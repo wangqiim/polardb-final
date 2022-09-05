@@ -6,6 +6,15 @@
 #include "util.h"
 #include "spdlog/spdlog.h"
 
+// 等价于客户端read的调用次数
+static std::atomic<uint32_t> pk_local_count(0);
+static std::atomic<uint32_t> uk_local_count(0);
+static std::atomic<uint32_t> sk_local_count(0);
+// 等价于客户端的read中，无法仅仅通过本地，需要远程的read的次数
+static std::atomic<uint32_t> pk_remote_count(0);
+static std::atomic<uint32_t> uk_remote_count(0);
+static std::atomic<uint32_t> sk_remote_count(0);
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
@@ -57,6 +66,9 @@ static size_t Get(int32_t select_column,
     static thread_local int local_read_count = 0;
     static thread_local int remote_read_count = 0;
     if (is_local) {
+      if (where_column == 0) pk_local_count++;
+      if (where_column == 1) uk_local_count++;
+      if (where_column == 3) sk_local_count++;
       local_read_count++;
       if (local_read_count == 1) {
         spdlog::info("first call local_read_count once");
@@ -96,6 +108,9 @@ static size_t Get(int32_t select_column,
     }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((posArray.size() == 0 || where_column == Salary) && is_local) {
+      if (where_column == 0) pk_remote_count++;
+      if (where_column == 1) uk_remote_count++;
+      if (where_column == 3) sk_remote_count++;
       Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
@@ -130,6 +145,11 @@ static Package remoteGet(int32_t select_column,
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
-
+  spdlog::info("Server local get pk {}", pk_local_count);
+  spdlog::info("Server local get uk {}", uk_local_count);
+  spdlog::info("Server local get sk {}", sk_local_count);
+  spdlog::info("Server remote get pk {}", pk_remote_count);
+  spdlog::info("Server remote get uk {}", uk_remote_count);
+  spdlog::info("Server remote get sk {}", sk_remote_count);
   spdlog::info("NvmDB deinit done");
 }

@@ -12,9 +12,6 @@ std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
 std::atomic<bool> client_is_running[PeerHostInfoNum];
 
-static std::atomic<uint32_t> pk_remote_count(0);
-static std::atomic<uint32_t> uk_remote_count(0);
-static std::atomic<uint32_t> sk_remote_count(0);
 
 static bool serverSyncInit() {
   return group_is_runing.load();
@@ -97,41 +94,42 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 
+// 1. 依次向3个节点发送请求(write)，发送完以后进入第二步
+// 2. 依次从3个节点读取数据(read)
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
+  // 1. broadcast phrase1: send
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    if (!client_is_running[i].load()) continue;
+    int ret = client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
+    if (ret != 0) {
+      client_is_running[i].store(false);
+    }
+  }
+  // 2. broadcast phrase2: recv
   Package result;
   result.size = 0;
-  bool is_find = false; //PK UK 找到就不找了
-  for (int i = 0; i < 3; i++) {
-    while (true) { // backoff
-      if (!client_is_running[i].load() || is_find) break;
-      // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
-      spdlog::debug("Begin Remote Get Select {}, where: {}, from {}", select_column, where_column, i);
-      if (where_column == 0) pk_remote_count++;
-      if (where_column == 1) uk_remote_count++;
-      if (where_column == 3) sk_remote_count++;
-      Package package = client_send(select_column, where_column, column_key, column_key_len, tid, i);
-      if (package.size == -1) {
-        client_is_running[i].store(false);
-        break;
-      }
-      if ((where_column == 0 || where_column == 1) && package.size > 0) is_find = true;
-      int local_data_len, remote_data_len;
-      if (select_column == 0 || select_column == 3) {
-        local_data_len = result.size * 8;
-        remote_data_len = package.size * 8;
-      }
-      else {
-        local_data_len = result.size * 128;
-        remote_data_len = package.size * 128;
-      }
-      if (local_data_len + remote_data_len > 2000 * 8) {
-        spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed 2000 * 8", local_data_len + remote_data_len);
-      }
-      memcpy(result.data + local_data_len, package.data, remote_data_len);
-      result.size += package.size;
-      break;
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    if (!client_is_running[i].load()) continue;
+    Package package = client_broadcast_recv(select_column, where_column, column_key, column_key_len, tid, i);
+    if (package.size == -1) {
+      client_is_running[i].store(false);
+      continue;
     }
+    int local_data_len, remote_data_len;
+    if (select_column == 0 || select_column == 3) {
+      local_data_len = result.size * 8;
+      remote_data_len = package.size * 8;
+    }
+    else {
+      local_data_len = result.size * 128;
+      remote_data_len = package.size * 128;
+    }
+    if (local_data_len + remote_data_len > 2000 * 8) {
+      spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed 2000 * 8", local_data_len + remote_data_len);
+    }
+    memcpy(result.data + local_data_len, package.data, remote_data_len);
+    result.size += package.size;
   }
   return result;
 }
@@ -155,8 +153,4 @@ static void deInitGroup() {
     }
   }
   std::this_thread::sleep_for(std::chrono::seconds(5));
-
-  spdlog::info("Server remote get pk {}", pk_remote_count);
-  spdlog::info("Server remote get uk {}", uk_remote_count);
-  spdlog::info("Server remote get sk {}", sk_remote_count);
 }

@@ -26,10 +26,13 @@ int create_connect(const char *ip, int port, int tid, int server) {
   return 0;
 }
 
-Package client_send(uint8_t select_column,
+// return value
+// 0: success
+// 1: fail or error
+int client_broadcast_send(uint8_t select_column,
           uint8_t where_column, const void *column_key, size_t column_key_len, int tid, int server) {
+  int ret = 0;
   char send_buf[130];
-  Package page;
   size_t buf_len = 2 + column_key_len;
   memcpy(send_buf, &select_column, 1);
   memcpy(send_buf + 1, &where_column, 1);
@@ -41,23 +44,32 @@ Package client_send(uint8_t select_column,
     } else {
       spdlog::warn("[client_send] Socket Send Server {} Failure, tid: {}, errno = {}", server, tid, errno);
     }
-    page.size = -1;
-    return page;
+    return -1;
   } else {
     if (send_bytes != buf_len) {
       spdlog::error("[client_send] send fail, send_bytes = {}, expected len: {}", send_bytes, buf_len);
       exit(1);
+      return -1;
     }
     spdlog::debug("[client_send] Socket Send Server {} Success, tid: {}", server, tid);
   }
+  return 0;
+}
 
+// return value
+// Package.size = -1: fail or error
+// else success
+Package client_broadcast_recv(uint8_t select_column,
+          uint8_t where_column, const void *column_key, size_t column_key_len, int tid, int server) {
+  Package page;
+  // todo(wq): 直接read整个页应该也行.(不会有其他线程同时读写该socket)
   int len = read(clients[server][tid], &page, 4);
   if (len != 4) {
     spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, 4);
     page.size = -1;
     return page;
   }
-  size_t value_len;
+  size_t value_len = 0;
   if (select_column == 0 || select_column == 3) {
     value_len = 8 * page.size;
   } else {
@@ -71,9 +83,7 @@ Package client_send(uint8_t select_column,
       spdlog::error("[client_send] read fail, len = {}, expected: {}, errno = {}", len, value_len, errno);
     }
     page.size = -1;
-    return page;
   }
-
   return page;
 }
 
