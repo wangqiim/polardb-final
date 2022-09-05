@@ -115,7 +115,7 @@ static Package clientRemoteGet(int32_t select_column,
         client_is_running[i].store(false);
         break;
       }
-      if (where_column == 0 || where_column == 1 && package.size > 0) is_find = true;
+      if ((where_column == 0 || where_column == 1) && package.size > 0) is_find = true;
       int local_data_len, remote_data_len;
       if (select_column == 0 || select_column == 3) {
         local_data_len = result.size * 8;
