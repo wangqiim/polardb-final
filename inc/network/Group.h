@@ -11,6 +11,11 @@ std::string global_peer_host_info[PeerHostInfoNum];
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
 std::atomic<bool> client_is_running[PeerHostInfoNum];
+
+static std::atomic<uint32_t> pk_remote_count(0);
+static std::atomic<uint32_t> uk_remote_count(0);
+static std::atomic<uint32_t> sk_remote_count(0);
+
 static bool serverSyncInit() {
   return group_is_runing.load();
 }
@@ -48,7 +53,6 @@ static void mustAddConnect(int tid) {
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
   pthread_t serverId;
   int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
-
   for (int i = 0; i < peer_host_info_num; i++) {
     global_peer_host_info[i] = std::string(peer_host_info[i]);
     std::string s = std::string(peer_host_info[i]);
@@ -97,16 +101,21 @@ static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
   Package result;
   result.size = 0;
+  bool is_find = false; //PK UK 找到就不找了
   for (int i = 0; i < 3; i++) {
     while (true) { // backoff
-      if (!client_is_running[i].load()) break;
+      if (!client_is_running[i].load() || is_find) break;
       // 杨樊：我们这边有个重要原则是：读取不会涉及已kill节点
       spdlog::debug("Begin Remote Get Select {}, where: {}, from {}", select_column, where_column, i);
+      if (where_column == 0) pk_remote_count++;
+      if (where_column == 1) uk_remote_count++;
+      if (where_column == 3) sk_remote_count++;
       Package package = client_send(select_column, where_column, column_key, column_key_len, tid, i);
       if (package.size == -1) {
         client_is_running[i].store(false);
         break;
       }
+      if (where_column == 0 || where_column == 1 && package.size > 0) is_find = true;
       int local_data_len, remote_data_len;
       if (select_column == 0 || select_column == 3) {
         local_data_len = result.size * 8;
@@ -146,4 +155,8 @@ static void deInitGroup() {
     }
   }
   std::this_thread::sleep_for(std::chrono::seconds(5));
+
+  spdlog::info("Server remote get pk {}", pk_remote_count);
+  spdlog::info("Server remote get uk {}", uk_remote_count);
+  spdlog::info("Server remote get sk {}", sk_remote_count);
 }
