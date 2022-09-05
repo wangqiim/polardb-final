@@ -86,7 +86,7 @@ static size_t Get(int32_t select_column,
       }
     }
     // 3. 尝试从本地读
-    std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key);
+    std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
     uint32_t result_bytes = 0;
     if (posArray.size() > 0){
       for (uint32_t pos : posArray) {
@@ -111,7 +111,16 @@ static size_t Get(int32_t select_column,
       if (where_column == 0) pk_remote_count++;
       if (where_column == 1) uk_remote_count++;
       if (where_column == 3) sk_remote_count++;
-      Package result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
+      Package result;
+      if (where_column == 1) {
+        char hash_colum_key[8];
+        UserId uid = UserId((char *)column_key);
+        memcpy(hash_colum_key, &uid.hashCode1, 4);
+        memcpy(hash_colum_key + 4, &uid.hashCode2, 4);
+        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid);
+      } else {
+        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
+      }
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
       if(select_column == Userid || select_column == Name) dataSize = result.size * 128;      
@@ -124,12 +133,9 @@ static size_t Get(int32_t select_column,
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len) {
   Package packge;
-  if (where_column == Salary || where_column == Id) {
-    uint64_t key = *(uint64_t *)(column_key);
-    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, key);
-  } else {
-    spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, to_hex((unsigned char *)column_key, 128));
-  }
+  uint64_t key = *(uint64_t *)(column_key);
+  spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, key);
+
   packge.size = Get(select_column, where_column, column_key, column_key_len, packge.data, false);
   if (packge.size > 0) {
     int dataSize = 0;

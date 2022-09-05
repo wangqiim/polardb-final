@@ -32,7 +32,7 @@ int create_connect(const char *ip, int port, int tid, int server) {
 int client_broadcast_send(uint8_t select_column,
           uint8_t where_column, const void *column_key, size_t column_key_len, int tid, int server) {
   int ret = 0;
-  char send_buf[130];
+  char send_buf[20];
   size_t buf_len = 2 + column_key_len;
   memcpy(send_buf, &select_column, 1);
   memcpy(send_buf + 1, &where_column, 1);

@@ -79,18 +79,14 @@ void *connect_client(void *arg) {
         uint8_t whereColum = *(uint8_t *)(buf + 1);
         char *column_key = buf + 2;
 
-        size_t column_key_len;
-        if (whereColum == 0 || whereColum == 3) {
-            column_key_len = 8;
-            spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
-        } else {
-            column_key_len = 128; 
-            spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, to_hex((unsigned char *)column_key, column_key_len));
-        }
+        size_t column_key_len = 8;
+        spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
+
         if (size_len != 2 + column_key_len) {
             spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
         }
         Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
+        
         if (selectColum == 0 || selectColum == 3) {
             column_key_len = 8;
         } else {

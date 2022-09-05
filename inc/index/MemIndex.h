@@ -14,6 +14,7 @@ class UserId {
 public:
   uint32_t hashCode1;
   uint32_t hashCode2;
+  UserId() {}
 	UserId(const char *str){
     hashCode1  = hashfn(str, 1);
     hashCode2 =  hashfn(str, 2);
@@ -118,7 +119,7 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     pthread_rwlock_unlock(&rwlock[tid]);
 } 
 
-static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key) {
+static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
@@ -133,9 +134,16 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     }
   }
   if (where_column == Userid) {
+    UserId uid;
+    if(is_local) {
+      uid = UserId((char *)column_key);
+    } else {
+      memcpy(&uid.hashCode1, (char *)column_key, 4);
+      memcpy(&uid.hashCode2, (char *)column_key + 4, 4);
+    }
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = uk[i].find(UserId((char *)column_key));
+      auto it = uk[i].find(uid);
       if (it != uk[i].end()) {
         result.push_back(it->second);
         pthread_rwlock_unlock(&rwlock[i]);
