@@ -50,9 +50,29 @@ static void mustAddConnect(int tid) {
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
   pthread_t serverId;
   int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
+
+  // 给peer_host_info排序
+  std::string host_info_str(host_info);
+  std::vector<std::string> all_host_info_str;
+  all_host_info_str.push_back(host_info_str);
   for (int i = 0; i < peer_host_info_num; i++) {
-    global_peer_host_info[i] = std::string(peer_host_info[i]);
-    std::string s = std::string(peer_host_info[i]);
+    all_host_info_str.push_back(std::string(peer_host_info[i]));
+  }
+  std::sort(all_host_info_str.begin(), all_host_info_str.end());
+  int idx = 0;
+  for (idx = 0; idx < all_host_info_str.size(); idx++) {
+    if (all_host_info_str[idx] == host_info_str) break;
+  }
+  std::vector<std::string> sorted_peer_host_info;
+  int t = peer_host_info_num; // 3
+  while (t--) {
+    idx = (idx + 1) % all_host_info_str.size();
+    sorted_peer_host_info.push_back(all_host_info_str[idx]);
+  }
+
+  for (int i = 0; i < peer_host_info_num; i++) {
+    global_peer_host_info[i] = sorted_peer_host_info[i];
+    std::string s = sorted_peer_host_info[i];
     std::string ip, port;
     int flag = s.find(":");
     ip = s.substr(0,flag);
