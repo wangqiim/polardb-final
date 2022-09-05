@@ -179,10 +179,10 @@ static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
   spdlog::info("------ log local read type --------");
-  for (int select_column = 0; select_column < 3; select_column++) {
-    for (int where_column = 0; where_column < 3; where_column++) {
+  for (int select_column = 0; select_column < 4; select_column++) {
+    for (int where_column = 0; where_column < 4; where_column++) {
       spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_local_cnt[select_column][where_column]);
-      spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_remote_cnt[select_column][where_column]);
+      spdlog::info("Server remote get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_remote_cnt[select_column][where_column]);
     }
   }
   spdlog::info("------ log local write max/min pk/sk -------");
