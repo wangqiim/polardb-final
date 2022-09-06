@@ -55,7 +55,7 @@ void *connect_client(void *arg) {
             if (size_len == 0) {
                 spdlog::debug("[connect_client] close");
             } else {
-                spdlog::error("[connect_client] read error");
+                spdlog::error("[connect_client] read error, errno = {}", errno);
             }
             close(ts->fd);
             pthread_exit(NULL);
