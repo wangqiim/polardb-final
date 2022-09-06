@@ -11,6 +11,9 @@
 std::atomic<uint64_t> read_local_cnt[4][4];
 std::atomic<uint64_t> read_remote_cnt[4][4];
 
+thread_local int local_read_count = 0;
+thread_local int remote_read_count = 0;
+
 std::atomic<uint64_t> total_write_cnt = {0};
 
 uint64_t local_write_max_pk[50];
@@ -75,6 +78,12 @@ static void Put(const char *tuple, size_t len){
       spdlog::info("thread {} write {}", tid, write_count);
     }
     if (total_write_cnt == 200000000) {
+      for (int select_column = 0; select_column < 4; select_column++) {
+        for (int where_column = 0; where_column < 4; where_column++) {
+          spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_local_cnt[select_column][where_column]);
+          spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_remote_cnt[select_column][where_column]);
+        }
+      }
       spdlog::info("thread {} write 200000000th tuples", tid);
     }
 }
@@ -95,8 +104,6 @@ static size_t Get(int32_t select_column,
       }
     }
     // 2. 输出一些log来debug
-    static thread_local int local_read_count = 0;
-    static thread_local int remote_read_count = 0;
     if (is_local) {
       read_local_cnt[select_column][where_column]++;
       if (tid < 50) {
