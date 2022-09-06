@@ -8,8 +8,10 @@
 #include "util.h"
 #include "spdlog/spdlog.h"
 
-std::atomic<uint64_t> read_local_cnt[3][3];
-std::atomic<uint64_t> read_remote_cnt[3][3];
+std::atomic<uint64_t> read_local_cnt[4][4];
+std::atomic<uint64_t> read_remote_cnt[4][4];
+
+std::atomic<uint64_t> total_write_cnt = {0};
 
 uint64_t local_write_max_pk[50];
 uint64_t local_write_min_pk[50];
@@ -45,6 +47,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 
 static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len){
+    total_write_cnt++;
     static thread_local uint8_t tid = putTid++;
     if (tid >= PMEM_FILE_COUNT) {
       spdlog::error("tid overflow, current tid = {}", tid);
@@ -70,6 +73,9 @@ static void Put(const char *tuple, size_t len){
         Util::print_resident_set_size();
       }
       spdlog::info("thread {} write {}", tid, write_count);
+    }
+    if (total_write_cnt == 200000000) {
+      spdlog::info("thread {} write 200000000th tuples", tid);
     }
 }
 
@@ -179,8 +185,8 @@ static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
   spdlog::info("------ log local read type --------");
-  for (int select_column = 0; select_column < 3; select_column++) {
-    for (int where_column = 0; where_column < 3; where_column++) {
+  for (int select_column = 0; select_column < 4; select_column++) {
+    for (int where_column = 0; where_column < 4; where_column++) {
       spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_local_cnt[select_column][where_column]);
       spdlog::info("Server local get select_column: {}, where_column: {}, count: {}", select_column, where_column, read_remote_cnt[select_column][where_column]);
     }
@@ -225,5 +231,8 @@ static void deinitNvmDB() {
   spdlog::info("total_local_read_max_sk = {}", total_local_read_max_sk);
   spdlog::info("total_local_read_min_sk = {}", total_local_read_min_sk);
   spdlog::info("------------------------------------------------------");
+
+  spdlog::info("total_write_cnt = {}", total_write_cnt);
+
   spdlog::info("NvmDB deinit done");
 }
