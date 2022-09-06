@@ -12,8 +12,12 @@
 
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
 
-static uint64_t hashfn(const char *key) {
+static uint64_t blizardhashfn(const char *key) {
     return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
+}
+
+static uint64_t shardhashfn(uint64_t hash) {
+  return XXH3_64bits(&hash, 8);
 }
 
 class UserId {
@@ -21,7 +25,7 @@ public:
   uint64_t hashCode;
   UserId() {}
 	UserId(const char *str){
-    hashCode = hashfn(str);
+    hashCode = blizardhashfn(str);
 	}
 	UserId(const uint64_t hash){
     hashCode = hash;
@@ -34,7 +38,7 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      return XXH3_64bits(&rhs.hashCode, 8);
+      return rhs.hashCode;
     }
 };
 
@@ -103,8 +107,8 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     // pk[pk_shard].insert(std::pair<uint64_t, uint32_t>(id, pos));
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
 
-    uint64_t uk_hash = hashfn(tuple + 8);
-    uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
+    uint64_t uk_hash = blizardhashfn(tuple + 8);
+    uint64_t uk_shard = shardhashfn(uk_hash) % HASH_MAP_COUNT;
     // uint64_t uk_shard = tid;
     pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
     uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
@@ -151,7 +155,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     
-    uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
+    uint64_t uk_shard = shardhashfn(uid.hashCode) % HASH_MAP_COUNT;
     pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
