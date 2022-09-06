@@ -9,33 +9,26 @@
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 #include "../tools/DenseMap/unordered_dense.h"
 
-static uint32_t crypttable[0x500] = {0};
-
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
+
+static uint64_t hashfn(const char *key) {
+    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
+}
 
 class UserId {
 public:
   uint64_t hashCode;
   UserId() {}
 	UserId(const char *str){
-    hashCode = ankerl::unordered_dense::detail::wyhash::hash(str, 128);
+    hashCode = hashfn(str);
+	}
+	UserId(const uint64_t hash){
+    hashCode = hash;
 	}
 	bool operator==(const UserId & p) const 
 	{
     return p.hashCode == hashCode;
 	}
-  uint32_t hashfn(const char *key, int type) {
-      uint8_t *k = (uint8_t *)key;
-      uint32_t seed1 = 0x7fed7fed;
-      uint32_t seed2 = 0xeeeeeeee;
-      uint32_t ch;
-      for(int i = 0; i < 128; i++) {
-          ch = *k++;
-          seed1 = crypttable[(type << 8) + ch] ^ (seed1 + seed2);
-          seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3;
-      }
-      return seed1;
-  }
 };
 
 struct UserIdHash {
@@ -62,7 +55,7 @@ struct Str128Hash {
     }
 };
 
-pthread_rwlock_t rwlock[50];
+pthread_rwlock_t rwlock[3][HASH_MAP_COUNT];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
@@ -78,23 +71,16 @@ static void initIndex() {
   spdlog::info("Init Index Begin");
   memset(thread_pos, 0, sizeof(thread_pos));
 
-  uint32_t seed = 0x00100001, idx1, idx2, i;
-  for (idx1 = 0; idx1 < 0x100; idx1++) {
-      for (idx2 = idx1, i = 0; i < 5; i++, idx2 += 0x100) {
-          uint32_t temp1, temp2;
-          seed = (seed * 125 + 3) % 0x2AAAAB;
-          temp1 = (seed & 0xFFFF) << 0x10;
-          seed = (seed * 125 + 3) % 0x2AAAAB;
-          temp2 = (seed & 0xFFFF);
-          crypttable[idx2] = (temp1 | temp2);
-      }
-  }
-
-  for (int i = 0; i < HASH_MAP_COUNT; i++) {
-    pthread_rwlock_init(&rwlock[i], NULL);
+  for (size_t i = 0; i < HASH_MAP_COUNT; i++) {
     pk[i].reserve(4000000);
     uk[i].reserve(4000000);
     sk[i].reserve(4000000);
+  }
+
+  for (size_t i = 0; i < 3; i++) {
+    for (size_t j = 0; j < HASH_MAP_COUNT; j++) {
+      pthread_rwlock_init(&rwlock[i][j], NULL);
+    }
   }
   spdlog::info("Init Index End");
 }
@@ -103,68 +89,72 @@ static void initIndex() {
 // 1. recovery时调用
 // 2. write插入数据时调用
 static void insert(const char *tuple, size_t len, uint8_t tid) {
-    pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     uint64_t id = *(uint64_t *)tuple;
-    pk[tid].insert(std::pair<uint64_t, uint32_t>(id, pos));
-    uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
-    sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
-    // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
-    // if (it != sk[tid].end()) {
-    //     it -> second.push_back(pos);
-    // } else {
-    //     sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
-    // }
+
+    uint64_t pk_shard = id % HASH_MAP_COUNT;
+    pthread_rwlock_wrlock(&rwlock[0][pk_shard]);
+    pk[pk_shard].insert(std::pair<uint64_t, uint32_t>(id, pos));
+    pthread_rwlock_unlock(&rwlock[0][pk_shard]);
+
+    uint64_t uk_hash = hashfn(tuple + 8);
+    uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
+    pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
+    uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
+    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+
+    uint64_t salary = *(uint64_t *)(tuple + 264);
+    uint64_t sk_shard = salary % HASH_MAP_COUNT;
+    pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
+    sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
+    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
-    pthread_rwlock_unlock(&rwlock[tid]);
 } 
 
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
+     // performance test中,每个节点的数据是固定的连续两亿条,
+     // 比如[0,2e8-1],[2e8, 4e8-1],[4e8, 6e8-1],[6e8, 8e8-1]
     if (key < local_min_pk || key > local_max_pk) return result;
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = pk[i].find(key);
-      if (it != pk[i].end()) {
-        result.push_back(it->second);
-        pthread_rwlock_unlock(&rwlock[i]);
-        break;
-      }
-      pthread_rwlock_unlock(&rwlock[i]);
+    
+    uint64_t pk_shard = key % HASH_MAP_COUNT;
+    pthread_rwlock_rdlock(&rwlock[0][pk_shard]);
+    auto it = pk[pk_shard].find(key);
+    if (it != pk[pk_shard].end()) {
+      result.push_back(it->second);
     }
+    pthread_rwlock_unlock(&rwlock[0][pk_shard]);
   }
   if (where_column == Userid) {
     UserId uid;
     if(is_local) {
       uid = UserId((char *)column_key);
-    } else {
+    } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = uk[i].find(uid);
-      if (it != uk[i].end()) {
-        result.push_back(it->second);
-        pthread_rwlock_unlock(&rwlock[i]);
-        break;
-      } 
-      pthread_rwlock_unlock(&rwlock[i]);
-    }    
+    
+    uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
+    pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
+    auto it = uk[uk_shard].find(uid);
+    if (it != uk[uk_shard].end()) {
+      result.push_back(it->second);
+    } 
+    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
   }
   if (where_column == Salary) {
-    for (int i = 0; i < HASH_MAP_COUNT; i++) {
-      // bool isFind = false;
-      pthread_rwlock_rdlock(&rwlock[i]);
-      auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
-      for (auto it = its.first; it != its.second; ++it) {
-        result.push_back(it->second);
-      }
-      pthread_rwlock_unlock(&rwlock[i]);
+    uint64_t salary = *(int64_t *)((char *)column_key);
+    uint64_t sk_shard = salary % HASH_MAP_COUNT;
+    pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
+    auto its = sk[sk_shard].equal_range(salary);
+    for (auto it = its.first; it != its.second; ++it) {
+      result.push_back(it->second);
     }
+    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
   }
 
   return result;
