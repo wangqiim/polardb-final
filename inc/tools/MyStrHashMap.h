@@ -82,14 +82,14 @@ class MyUInt64HashMap {
   }
 
   uint32_t get(uint64_t key) {
-    return hash_table[key & (hashSize - 1)]; //如果返回值是 0,表示是空的
+    return hash_table[key % (hashSize)]; //如果返回值是 0,表示是空的
   }
 
   void insert(uint64_t key, uint32_t value) {
-    hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0
+    hash_table[key % (hashSize)] = value + 1; //不可能出现0
   }
 
   private:
   uint32_t *hash_table;
-  const uint32_t hashSize = 1<<28;
+  const uint32_t hashSize = 200000000;
 };
