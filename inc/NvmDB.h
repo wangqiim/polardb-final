@@ -39,7 +39,7 @@ static void Put(const char *tuple, size_t len){
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
     // note: write_count just used for log/debug
-    if (write_count % 100000 == 0) {
+    if (write_count % 500000 == 0) {
       if (write_count % 1000000 == 0) {
         Util::print_resident_set_size();
       }

@@ -4,7 +4,6 @@
 #include <xmmintrin.h>
 #include <unistd.h> 
 #include <string.h>
-#include "./xxhash.h"
 
 struct alignas(64) MyStrHead
 {
@@ -74,27 +73,23 @@ class MyString256HashMap {
 class MyUInt64HashMap {
   public:
   MyUInt64HashMap() {
-    hash_table = new uint64_t[hashSize];
-    // memset(hash_table, 0, sizeof(MyStrHead) * hashSize);
+    hash_table = new uint32_t[hashSize];
+    memset(hash_table, 0, sizeof(uint32_t) * hashSize);
   }
 
   ~MyUInt64HashMap() {
     delete hash_table;
   }
 
-  uint64_t get(uint32_t key) {
-    return hash_table[key & (hashSize)];
+  uint32_t get(uint64_t key) {
+    return hash_table[key & (hashSize - 1)]; //如果返回值是 0,表示是空的
   }
 
-  void insert(uint32_t key, uint64_t value) {
-    hash_table[key & (hashSize)] = value;
-  }
-
-  void stat() {
-    // std::cout << "recovery boom " << hash_boom << std::endl;
+  void insert(uint64_t key, uint32_t value) {
+    hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0
   }
 
   private:
-  uint64_t *hash_table;
-  const uint32_t hashSize = 1<<26 - 1;
+  uint32_t *hash_table;
+  const uint32_t hashSize = 1<<28;
 };
