@@ -11,6 +11,8 @@
 
 static uint32_t crypttable[0x500] = {0};
 
+static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
+
 class UserId {
 public:
   uint64_t hashCode;
@@ -103,7 +105,8 @@ static void initIndex() {
 static void insert(const char *tuple, size_t len, uint8_t tid) {
     pthread_rwlock_wrlock(&rwlock[tid]);
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
-    pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
+    uint64_t id = *(uint64_t *)tuple;
+    pk[tid].insert(std::pair<uint64_t, uint32_t>(id, pos));
     uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
     sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
     // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
@@ -112,6 +115,8 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     // } else {
     //     sk[tid].insert(std::pair<uint64_t, std::vector<uint32_t>>(*(uint64_t *)(tuple + 264), {pos}));
     // }
+    if (id > local_max_pk) local_max_pk = id;
+    if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
     pthread_rwlock_unlock(&rwlock[tid]);
 } 
@@ -119,9 +124,11 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
+    uint64_t key = *(uint64_t *)column_key;
+    if (key < local_min_pk || key > local_max_pk) return result;
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       pthread_rwlock_rdlock(&rwlock[i]);
-      auto it = pk[i].find(*(uint64_t *)(column_key));
+      auto it = pk[i].find(key);
       if (it != pk[i].end()) {
         result.push_back(it->second);
         pthread_rwlock_unlock(&rwlock[i]);
