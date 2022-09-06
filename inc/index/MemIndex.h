@@ -92,19 +92,22 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     uint64_t id = *(uint64_t *)tuple;
 
-    uint64_t pk_shard = id % HASH_MAP_COUNT;
+    // uint64_t pk_shard = id % HASH_MAP_COUNT;
+    uint64_t pk_shard = tid; //不分片
     pthread_rwlock_wrlock(&rwlock[0][pk_shard]);
     pk[pk_shard].insert(std::pair<uint64_t, uint32_t>(id, pos));
     pthread_rwlock_unlock(&rwlock[0][pk_shard]);
 
     uint64_t uk_hash = hashfn(tuple + 8);
-    uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
+    // uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
+    uint64_t uk_shard = tid;
     pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
     uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
     pthread_rwlock_unlock(&rwlock[1][uk_shard]);
 
     uint64_t salary = *(uint64_t *)(tuple + 264);
-    uint64_t sk_shard = salary % HASH_MAP_COUNT;
+    // uint64_t sk_shard = salary % HASH_MAP_COUNT;
+    uint64_t sk_shard = tid;
     pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
     pthread_rwlock_unlock(&rwlock[2][sk_shard]);
@@ -122,13 +125,17 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
      // 比如[0,2e8-1],[2e8, 4e8-1],[4e8, 6e8-1],[6e8, 8e8-1]
     if (key < local_min_pk || key > local_max_pk) return result;
     
-    uint64_t pk_shard = key % HASH_MAP_COUNT;
-    pthread_rwlock_rdlock(&rwlock[0][pk_shard]);
-    auto it = pk[pk_shard].find(key);
-    if (it != pk[pk_shard].end()) {
-      result.push_back(it->second);
+    // uint64_t pk_shard = key % HASH_MAP_COUNT;
+    for (uint64_t pk_shard = 0; pk_shard < HASH_MAP_COUNT; pk_shard++) {
+      pthread_rwlock_rdlock(&rwlock[0][pk_shard]);
+      auto it = pk[pk_shard].find(key);
+      if (it != pk[pk_shard].end()) {
+        result.push_back(it->second);
+        pthread_rwlock_unlock(&rwlock[0][pk_shard]);
+        return result;
+      }
+      pthread_rwlock_unlock(&rwlock[0][pk_shard]);
     }
-    pthread_rwlock_unlock(&rwlock[0][pk_shard]);
   }
   if (where_column == Userid) {
     UserId uid;
@@ -138,23 +145,29 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     
-    uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
-    pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
-    auto it = uk[uk_shard].find(uid);
-    if (it != uk[uk_shard].end()) {
-      result.push_back(it->second);
-    } 
-    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+    // uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
+    for (uint64_t uk_shard = 0; uk_shard < HASH_MAP_COUNT; uk_shard++) {
+      pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
+      auto it = uk[uk_shard].find(uid);
+      if (it != uk[uk_shard].end()) {
+        result.push_back(it->second);
+        pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+        return result;
+      } 
+      pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+    }
   }
   if (where_column == Salary) {
     uint64_t salary = *(int64_t *)((char *)column_key);
-    uint64_t sk_shard = salary % HASH_MAP_COUNT;
-    pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
-    auto its = sk[sk_shard].equal_range(salary);
-    for (auto it = its.first; it != its.second; ++it) {
-      result.push_back(it->second);
+    // uint64_t sk_shard = salary % HASH_MAP_COUNT;
+    for (uint64_t sk_shard = 0; sk_shard < HASH_MAP_COUNT; sk_shard++) {
+      pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
+      auto its = sk[sk_shard].equal_range(salary);
+      for (auto it = its.first; it != its.second; ++it) {
+        result.push_back(it->second);
+      }
+      pthread_rwlock_unlock(&rwlock[2][sk_shard]);
     }
-    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
   }
 
   return result;
