@@ -91,5 +91,5 @@ class MyUInt64HashMap {
 
   private:
   uint32_t *hash_table;
-  const uint32_t hashSize = 200000000;
+  const uint32_t hashSize = 200000005;
 };
