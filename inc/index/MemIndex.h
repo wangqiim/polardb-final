@@ -18,7 +18,7 @@ static uint64_t blizardhashfn(const char *key) {
 
 static uint32_t shardhashfn(uint64_t hash) {
   uint32_t key = (hash >> 32) & 0xffffffff;
-  return key;
+  return key & (UK_HASH_MAP_SHARD - 1);
 }
 
 class UserId {
@@ -110,7 +110,7 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
 
     // 2. insert uk index
     uint64_t uk_hash = blizardhashfn(tuple + 8);
-    uint32_t uk_shard = shardhashfn(uk_hash) % UK_HASH_MAP_SHARD;
+    uint32_t uk_shard = shardhashfn(uk_hash);
     // uint64_t uk_shard = tid;
     pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
     uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
@@ -158,7 +158,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     
-    uint32_t uk_shard = shardhashfn(uid.hashCode) % UK_HASH_MAP_SHARD;
+    uint32_t uk_shard = shardhashfn(uid.hashCode);
     pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
