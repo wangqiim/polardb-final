@@ -34,7 +34,7 @@ public:
 
 struct UserIdHash {
     size_t operator()(const UserId& rhs) const{
-      return rhs.hashCode;
+      return XXH3_64bits(&rhs.hashCode, 8);
     }
 };
 
@@ -104,8 +104,8 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
 
     uint64_t uk_hash = hashfn(tuple + 8);
-    // uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
-    uint64_t uk_shard = tid;
+    uint64_t uk_shard = uk_hash % HASH_MAP_COUNT;
+    // uint64_t uk_shard = tid;
     pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
     uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
     pthread_rwlock_unlock(&rwlock[1][uk_shard]);
@@ -151,17 +151,13 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     
-    // uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
-    for (uint64_t uk_shard = 0; uk_shard < HASH_MAP_COUNT; uk_shard++) {
-      pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
-      auto it = uk[uk_shard].find(uid);
-      if (it != uk[uk_shard].end()) {
-        result.push_back(it->second);
-        pthread_rwlock_unlock(&rwlock[1][uk_shard]);
-        return result;
-      } 
-      pthread_rwlock_unlock(&rwlock[1][uk_shard]);
-    }
+    uint64_t uk_shard = uid.hashCode % HASH_MAP_COUNT;
+    pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
+    auto it = uk[uk_shard].find(uid);
+    if (it != uk[uk_shard].end()) {
+      result.push_back(it->second);
+    } 
+    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
   }
   if (where_column == Salary) {
     uint64_t salary = *(int64_t *)((char *)column_key);

@@ -80,13 +80,13 @@ class MyUInt64HashMap {
   ~MyUInt64HashMap() {
     delete hash_table;
   }
-
+  //todo 缺少冲突管理
   uint32_t get(uint64_t key) {
     return hash_table[key & (hashSize - 1)]; //如果返回值是 0,表示是空的
   }
-
+  //todo 缺少冲突管理
   void insert(uint64_t key, uint32_t value) {
-    hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0
+    hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0 
   }
 
   private:
