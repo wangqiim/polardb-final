@@ -17,7 +17,7 @@ static uint64_t blizardhashfn(const char *key) {
 }
 
 static uint32_t shardhashfn(uint64_t hash) {
-  uint32_t key = (hash) & 0xffffffff;
+  uint32_t key = (hash >> 32) & 0xffffffff;
   return key & (UK_HASH_MAP_SHARD - 1);
 }
 
