@@ -1,4 +1,4 @@
-#pragma mark once
+#pragma once
 #include <sys/types.h> /* See NOTES */
 #include <sys/socket.h>
 #include <netinet/tcp.h> 
@@ -32,7 +32,7 @@ struct s_info {
 } ts[256];
 
 struct Package {
-  uint32_t size = 0;
+  int32_t size = 0;
   char data[2000 * 8];
 };
 
@@ -80,7 +80,7 @@ void *connect_client(void *arg) {
         uint8_t whereColum = *(uint8_t *)(buf + 1);
         char *column_key = buf + 2;
 
-        size_t column_key_len = 8;
+        ssize_t column_key_len = 8;
         spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
 
         if (size_len != 2 + column_key_len) {
@@ -93,8 +93,8 @@ void *connect_client(void *arg) {
         } else {
             column_key_len = 128;
         }
-        size_t data_size = page.size * column_key_len + 4; //数据长度加上Size
-        int writen_bytes = write(ts->fd, &page, data_size);
+        ssize_t data_size = page.size * column_key_len + 4; //数据长度加上Size
+        ssize_t writen_bytes = write(ts->fd, &page, data_size);
         if (writen_bytes != data_size) {
             spdlog::error("[connect_client] server_socket write error, writen_bytes = {}, expected: {}", writen_bytes, data_size);
         }

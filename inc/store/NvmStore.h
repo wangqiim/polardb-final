@@ -30,14 +30,14 @@ static inline void print_time(struct timeval t1, struct timeval t2) {
 
 static void recovery();
 
-static void initStore(const char* aep_dir, const char* disk_dir) {
+static void initStore(const char* aep_dir, __attribute__((unused)) const char* disk_dir) {
   spdlog::info("get sys pmem dir: {}", aep_dir);
   std::string base_path = std::string(aep_dir);
   if(base_path[base_path.length() - 1] != '/') {
     base_path = base_path + "/";
   }
   unsigned long mmap_size = RECORD_SIZE * PER_THREAD_MAX_WRITE + COMMIT_FLAG_SIZE;
-  for(int i = 0; i < PMEM_FILE_COUNT; i++) {
+  for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     std::string path = std::string(base_path) + "pmem" + std::to_string(i) + ".pool";
     size_t mapped_len;
     int is_pmem;
@@ -91,9 +91,9 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
 // build index
 static void recovery() {
   uint64_t recovery_cnt = 0;
-  for (int i = 0; i < PMEM_FILE_COUNT; i++) {
+  for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint32_t commit_cnt = *(uint32_t *)(PBM[i].address - 4);
-    for (int j = 0; j < commit_cnt; j++) {
+    for (uint64_t j = 0; j < commit_cnt; j++) {
       insert(PBM[i].address + PBM[i].offset, 272UL, i);
       PBM[i].offset += 272UL;
     }

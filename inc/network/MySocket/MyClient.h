@@ -1,4 +1,4 @@
-#pragma mark once
+#pragma once
 #include <exception>
 #include "./MyServer.h"
 
@@ -36,13 +36,12 @@ int create_connect(const char *ip, int port, int tid, int server) {
 // 1: fail or error
 int client_broadcast_send(uint8_t select_column,
           uint8_t where_column, const void *column_key, size_t column_key_len, int tid, int server) {
-  int ret = 0;
   char send_buf[20];
   size_t buf_len = 2 + column_key_len;
   memcpy(send_buf, &select_column, 1);
   memcpy(send_buf + 1, &where_column, 1);
   memcpy(send_buf + 2, column_key, column_key_len);
-  int send_bytes = send(clients[server][tid], send_buf, buf_len, 0); 
+  ssize_t send_bytes = send(clients[server][tid], send_buf, buf_len, 0); 
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof
       spdlog::debug("[client_send] read eof!");
@@ -51,7 +50,7 @@ int client_broadcast_send(uint8_t select_column,
     }
     return -1;
   } else {
-    if (send_bytes != buf_len) {
+    if (send_bytes != ssize_t(buf_len)) {
       spdlog::error("[client_send] send fail, send_bytes = {}, expected len: {}", send_bytes, buf_len);
       exit(1);
       return -1;
@@ -64,17 +63,16 @@ int client_broadcast_send(uint8_t select_column,
 // return value
 // Package.size = -1: fail or error
 // else success
-Package client_broadcast_recv(uint8_t select_column,
-          uint8_t where_column, const void *column_key, size_t column_key_len, int tid, int server) {
+Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
   Package page;
   // todo(wq): 直接read整个页应该也行.(不会有其他线程同时读写该socket)
-  int len = read(clients[server][tid], &page, 4);
+  ssize_t len = read(clients[server][tid], &page, 4);
   if (len != 4) {
     spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, 4);
     page.size = -1;
     return page;
   }
-  size_t value_len = 0;
+  ssize_t value_len = 0;
   if (select_column == 0 || select_column == 3) {
     value_len = 8 * page.size;
   } else {

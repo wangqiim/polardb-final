@@ -101,7 +101,7 @@ static void initIndex() {
 // 该方法有两处调用
 // 1. recovery时调用
 // 2. write插入数据时调用
-static void insert(const char *tuple, size_t len, uint8_t tid) {
+static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     uint64_t id = *(uint64_t *)tuple;
     uint64_t uk_hash = blizardhashfn(tuple + 8);

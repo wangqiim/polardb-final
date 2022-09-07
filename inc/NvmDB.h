@@ -31,7 +31,7 @@ static void Put(const char *tuple, size_t len){
     if (tid >= PMEM_FILE_COUNT) {
       spdlog::error("tid overflow, current tid = {}", tid);
     }
-    static thread_local int write_count = 0;
+    static thread_local uint64_t write_count = 0;
     write_count++;
     if (write_count > PER_THREAD_MAX_WRITE) {
       spdlog::error("write_count overflow!");
@@ -93,11 +93,11 @@ static size_t Get(int32_t select_column,
         readColumFromPos(select_column, pos, res);
         if(select_column == Id || select_column == Salary) {
           result_bytes += 8;
-          res += 8;
+          res = (char *)res + 8;
         } 
         if(select_column == Userid || select_column == Name) {
           result_bytes += 128;
-          res += 128;
+          res = (char *)res + 128;
         }
         if (result_bytes >= 2000 * 8) {
           spdlog::error("result overflow!!!!!!");
@@ -137,7 +137,6 @@ static Package remoteGet(int32_t select_column,
 
   packge.size = Get(select_column, where_column, column_key, column_key_len, packge.data, false);
   if (packge.size > 0) {
-    int dataSize = 0;
     if (select_column == Salary || select_column == Id) {
       spdlog::debug("Result Size = {}, Value = {}", packge.size, *(uint64_t *)packge.data);
     } else {

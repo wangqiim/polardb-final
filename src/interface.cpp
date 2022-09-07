@@ -6,11 +6,11 @@
 
 int call_init_num = 0;
 
-void engine_write(void *ctx, const void *data, size_t len) {
+void engine_write(__attribute__((unused)) void *ctx, const void *data, size_t len) {
     Put((char *)data, len);
 }
 
-size_t engine_read( void *ctx, int32_t select_column,
+size_t engine_read(__attribute__((unused)) void *ctx, int32_t select_column,
     int32_t where_column, const void *column_key, size_t column_key_len, void *res) {
     return Get(select_column, where_column, column_key, column_key_len, res, true); 
 }
@@ -25,6 +25,6 @@ void* engine_init(const char* host_info, const char* const* peer_host_info, size
     return nullptr;
 }
 
-void engine_deinit(void *ctx) {
+void engine_deinit(__attribute__((unused)) void *ctx) {
     deinitNvmDB();
 }

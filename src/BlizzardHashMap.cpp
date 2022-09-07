@@ -135,7 +135,7 @@ hashtable_len(struct hashtable *ht) {
 }
 
 void
-hashtable_release(struct hashtable *ht, cb_del delfn) {
+hashtable_release(struct hashtable *ht, __attribute__((unused)) cb_del delfn) {
     for (int32_t i = 0; i < ht->size; ++i) {
         struct bucket *bkt = ht->slots[i];
         if (bkt) {

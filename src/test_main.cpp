@@ -82,7 +82,7 @@ void* thread_write(void* ctx)
 void* thread_read(void* ctx)
 {
     TestUser user;
-    char res[8000*128];
+    __attribute__((unused)) char res[8000*128];
     int id = *(int *)ctx;
     for(int i = 0; i < 1000000; i++) {
         char res[2000*128];
@@ -152,7 +152,7 @@ bool test_is_ok(void *ctx) {
     return true; 
 }
 
-void test_write(void *ctx) {
+void test_write(__attribute__((unused)) void *ctx) {
     pthread_t tids[NUM_THREADS];
     for(int i = 0; i < NUM_THREADS; ++i)
     {
@@ -167,7 +167,7 @@ void test_write(void *ctx) {
     pthread_exit(NULL);
 }
 
-void test_read(void *ctx) {
+void test_read(__attribute__((unused)) void *ctx) {
     pthread_t tids[NUM_THREADS];
     for(int i = 0; i < NUM_THREADS; ++i)
     {
@@ -183,7 +183,7 @@ void test_read(void *ctx) {
 }
 
 static std::atomic<uint64_t> threadId(0);
-void write_400M (void* ctx) {
+void write_400M (__attribute__((unused)) void* ctx) {
     uint64_t id = threadId++;
     std::string file = "./Dataset/user" + std::to_string(id) + ".dat";
     std::ofstream outFile(file, std::ios::out | std::ios::binary);
@@ -200,8 +200,8 @@ void write_400M (void* ctx) {
 
 int main()
 {
-    char *myIp = "127.0.0.1:9000";
-    char *server[3] = {"127.0.0.1:9000","127.0.0.1:9000", "127.0.0.1:9000"};
+    const char *myIp = "127.0.0.1:9000";
+    const char *server[3] = {"127.0.0.1:9000","127.0.0.1:9000", "127.0.0.1:9000"};
     void* ctx = engine_init(myIp, server, 3, "/mnt/pmem0/pmemData", "./");
     struct timeval t1,t2;
     double timeuse;

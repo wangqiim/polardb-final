@@ -28,6 +28,7 @@ void *runServer(void *input) {
   std::string ip = s.substr(0,index);
   std::string port = s.substr(index + 1, s.length());
   my_server_run(ip.c_str(), stoi(port));
+  return nullptr;
 }
 
 // 该函数只会被超出50的tid调用一次
@@ -50,16 +51,18 @@ static void mustAddConnect(int tid) {
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
   pthread_t serverId;
   int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
-
+  if (ret != 0) {
+    spdlog::error("[initGroup] pthread_create error, ret = {}", ret);
+  }
   // 给peer_host_info排序
   std::string host_info_str(host_info);
   std::vector<std::string> all_host_info_str;
   all_host_info_str.push_back(host_info_str);
-  for (int i = 0; i < peer_host_info_num; i++) {
+  for (size_t i = 0; i < peer_host_info_num; i++) {
     all_host_info_str.push_back(std::string(peer_host_info[i]));
   }
   std::sort(all_host_info_str.begin(), all_host_info_str.end());
-  int idx = 0;
+  size_t idx = 0;
   for (idx = 0; idx < all_host_info_str.size(); idx++) {
     if (all_host_info_str[idx] == host_info_str) break;
   }
@@ -70,7 +73,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     sorted_peer_host_info.push_back(all_host_info_str[idx]);
   }
 
-  for (int i = 0; i < peer_host_info_num; i++) {
+  for (size_t i = 0; i < peer_host_info_num; i++) {
     global_peer_host_info[i] = sorted_peer_host_info[i];
     std::string s = sorted_peer_host_info[i];
     std::string ip, port;
@@ -100,7 +103,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 
   group_is_runing.store(true);
   
-  for (int i = 0; i < peer_host_info_num; i++) {
+  for (size_t i = 0; i < peer_host_info_num; i++) {
     while (true) {
       if (client_sync(4, i, SYNC_TID) > 0) {
         spdlog::info("Server {} init Success", i);
@@ -131,7 +134,7 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (!client_is_running[i].load()) continue;
-    Package package = client_broadcast_recv(select_column, where_column, column_key, column_key_len, tid, i);
+    Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
       client_is_running[i].store(false);
       continue;
