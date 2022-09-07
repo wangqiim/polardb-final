@@ -104,6 +104,15 @@ static void initIndex() {
 static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     uint64_t id = *(uint64_t *)tuple;
+    uint64_t uk_hash = blizardhashfn(tuple + 8);
+    uint64_t salary = *(uint64_t *)(tuple + 264);
+
+    uint32_t uk_shard = shardhashfn(uk_hash);
+    uint64_t sk_shard = sk_shardhashfn(salary);
+
+    //获取所有锁
+    pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
 
     // 1. insert pk index
     pk.insert(id, pos);
@@ -112,23 +121,14 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     // pthread_rwlock_wrlock(&rwlock[0][pk_shard]);
     // pk[pk_shard].insert(std::pair<uint64_t, uint32_t>(id, pos));
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
-
     // 2. insert uk index
-    uint64_t uk_hash = blizardhashfn(tuple + 8);
-    uint32_t uk_shard = shardhashfn(uk_hash);
-    // uint64_t uk_shard = tid;
-    pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
     uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
-    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
-
     // 3. insert sk index
-    uint64_t salary = *(uint64_t *)(tuple + 264);
-    // uint64_t sk_shard = salary % HASH_MAP_COUNT;
-    uint64_t sk_shard = sk_shardhashfn(salary);
-    pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
-    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
 
+    //释放所有锁
+    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
@@ -164,12 +164,12 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     }
     
     uint32_t uk_shard = shardhashfn(uid.hashCode);
-    // pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
       result.push_back(it->second);
     } 
-    // pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
   }
   if (where_column == Salary) {
     uint64_t salary = *(int64_t *)((char *)column_key);
