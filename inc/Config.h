@@ -13,7 +13,7 @@ const uint64_t TOTAL_WRITE_NUM = 2e8; // 复赛单节点总写入2亿数据
 const uint64_t COMMIT_FLAG_SIZE = 4;
 const uint64_t PER_THREAD_MAX_WRITE = 5e6; // 有的线程会写超过400W，这里取500万
 //哈希索引分块
-const uint64_t UK_HASH_MAP_SHARD = 1<<9;
+const uint64_t UK_HASH_MAP_SHARD = 1<<12;
 const uint64_t SK_HASH_MAP_SHARD = 50;
 const uint64_t MAX_HASH_MAP_SHARD = 500; // 该值必须足够大 (预分配读写锁数组)
 //NMV文件数
