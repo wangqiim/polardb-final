@@ -127,8 +127,9 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
 
     //释放所有锁
-    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
     pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
@@ -172,7 +173,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     pthread_rwlock_unlock(&rwlock[1][uk_shard]);
   }
   if (where_column == Salary) {
-    uint64_t salary = *(int64_t *)((char *)column_key);
+    uint64_t salary = *(uint64_t *)((char *)column_key);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
     // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
     uint64_t sk_shard = sk_shardhashfn(salary);
