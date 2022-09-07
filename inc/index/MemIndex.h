@@ -21,6 +21,11 @@ static uint32_t shardhashfn(uint64_t hash) {
   return key & (UK_HASH_MAP_SHARD - 1);
 }
 
+static uint32_t sk_shardhashfn(uint64_t hash) {
+  uint32_t key = (hash >> 32) & 0xffffffff;
+  return key & (SK_HASH_MAP_SHARD - 1);
+}
+
 class UserId {
 public:
   uint64_t hashCode;
@@ -119,7 +124,7 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     // 3. insert sk index
     uint64_t salary = *(uint64_t *)(tuple + 264);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
-    uint64_t sk_shard = tid;
+    uint64_t sk_shard = sk_shardhashfn(salary);
     pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
     pthread_rwlock_unlock(&rwlock[2][sk_shard]);
@@ -169,14 +174,15 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
   if (where_column == Salary) {
     uint64_t salary = *(int64_t *)((char *)column_key);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
-    for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
-      pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
-      auto its = sk[sk_shard].equal_range(salary);
-      for (auto it = its.first; it != its.second; ++it) {
-        result.push_back(it->second);
-      }
-      pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
+    uint64_t sk_shard = sk_shardhashfn(salary);
+    pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
+    auto its = sk[sk_shard].equal_range(salary);
+    for (auto it = its.first; it != its.second; ++it) {
+      result.push_back(it->second);
     }
+    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    // }
   }
 
   return result;
