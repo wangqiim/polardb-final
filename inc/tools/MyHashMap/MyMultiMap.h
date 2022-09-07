@@ -34,7 +34,7 @@ public:
         
         KeyT& Key() const { return iter_->first; }
 
-        KeyT& Second() const {
+        ValueT& Second() const {
             if (no_ == 0) {
                 return iter_->second.value_;
             }

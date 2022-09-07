@@ -4,7 +4,6 @@
 #include <xmmintrin.h>
 #include <unistd.h> 
 #include <string.h>
-#include "./xxhash.h"
 
 struct alignas(64) MyStrHead
 {
