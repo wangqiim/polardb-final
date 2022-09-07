@@ -7,6 +7,8 @@
 #include "../tools/HashMap/EMHash/emhash5_int64_to_int64.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
+#include "../tools/MyHashMap/MyMultiMap.h"
+#include "../tools/MyStrHashMap.h"
 
 static uint32_t crypttable[0x500] = {0};
 
@@ -70,7 +72,7 @@ static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-static std::unordered_multimap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
+static MyMultiMap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
 
 // static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
@@ -150,7 +152,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       pthread_rwlock_rdlock(&rwlock[i]);
       auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
       for (auto it = its.first; it != its.second; ++it) {
-        result.push_back(it->second);
+        result.push_back(it.Second());
       }
       pthread_rwlock_unlock(&rwlock[i]);
     }
