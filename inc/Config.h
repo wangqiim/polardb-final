@@ -24,6 +24,8 @@ const int PeerHostInfoNum = 3;
 
 const int SYNC_TID = 100;
 
+bool is_use_remote_pk = false;
+
 enum Column{Id=0,Userid,Name,Salary};
 
 #endif

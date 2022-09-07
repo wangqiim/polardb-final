@@ -129,7 +129,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     //释放所有锁
     pthread_rwlock_unlock(&rwlock[1][uk_shard]);
     pthread_rwlock_unlock(&rwlock[2][sk_shard]);
-    
+
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
