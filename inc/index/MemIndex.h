@@ -8,6 +8,7 @@
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 #include "../tools/DenseMap/unordered_dense.h"
+#include "../tools/MyHashMap/MyMultiMap.h"
 #include "../tools/MyStrHashMap.h"
 
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
@@ -68,6 +69,8 @@ struct Str128Hash {
 
 pthread_rwlock_t rwlock[3][MAX_HASH_MAP_SHARD];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
+
+static MyMultiMap<uint64_t, uint32_t> sk2; // tudo(wq): 还未使用
 
 static MyUInt64HashMap pk;
 
