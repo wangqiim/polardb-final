@@ -111,8 +111,13 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
     uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
-    spdlog::info("[insert] insert sk[{}], salary = {}, pos = {}", tid, *(uint64_t *)(tuple + 264), pos);
     sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
+    spdlog::info("[insert] insert sk[{}], salary = {}, pos = {}, sk[{}].size() = {}"
+      , tid, *(uint64_t *)(tuple + 264), pos, tid, sk[tid].size());
+    auto iters = sk[tid].equal_range(*(uint64_t *)(tuple + 264));
+    if (iters.first == iters.second) {
+      spdlog::error("[insert] insert fail!!!!");
+    }
     sk_must_right[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
     // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
     // if (it != sk[tid].end()) {

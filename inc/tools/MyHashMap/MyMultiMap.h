@@ -83,7 +83,7 @@ public:
     iterator begin() { return iterator(internal_.begin(), 0); }
     iterator end() { return iterator(internal_.end(), 0); }
     bool reserve(uint64_t num_elems) { return internal_.reserve(num_elems); }
-    uint64_t size() const { return internal_.size(); }
+    uint64_t size() const { return size_; }
     
     // todo(wq): 修改返回值
     iterator insert(value_type &&kv_pair) {
@@ -114,4 +114,5 @@ public:
 
 private:
     Internal_HashMap internal_;
+    uint64_t size_;
 };
