@@ -29,10 +29,10 @@ public:
 
     class iterator {
     public:
-        iterator(Internal_iterator iter, int no): iter_(iter), no_(no) {}
+        iterator(Internal_iterator iter, size_t no): iter_(iter), no_(no) {}
         iterator(Internal_iterator &other_iter): iter_(other_iter.iter_), no_(other_iter.no_) {}
         
-        KeyT& Key() const { return iter_->first; }
+        KeyT& First() const { return iter_->first; }
 
         ValueT& Second() const {
             if (no_ == 0) {
@@ -76,7 +76,7 @@ public:
         }
     private:
         Internal_iterator iter_;
-        int no_;
+        size_t no_;
     };
 
     MyMultiMap() {};

@@ -73,6 +73,7 @@ static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
 static MyMultiMap<uint64_t, uint32_t> sk[HASH_MAP_COUNT]; 
+static std::unordered_multimap<uint64_t, uint32_t> sk_must_right[HASH_MAP_COUNT]; 
 
 // static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
@@ -97,6 +98,7 @@ static void initIndex() {
     pk[i].reserve(4000000);
     uk[i].reserve(4000000);
     sk[i].reserve(4000000);
+    sk_must_right[i].reserve(4000000);
   }
   spdlog::info("Init Index End");
 }
@@ -109,7 +111,9 @@ static void insert(const char *tuple, size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     pk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)tuple, pos));
     uk[tid].insert(std::pair<UserId, uint32_t>(UserId(tuple + 8), pos));
+    spdlog::info("[insert] insert sk[{}], salary = {}, pos = {}", tid, *(uint64_t *)(tuple + 264), pos);
     sk[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
+    sk_must_right[tid].insert(std::pair<uint64_t, uint32_t>(*(uint64_t *)(tuple + 264), pos));
     // auto it = sk[tid].find(*(uint64_t *)(tuple + 264));
     // if (it != sk[tid].end()) {
     //     it -> second.push_back(pos);
@@ -150,10 +154,22 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     for (int i = 0; i < HASH_MAP_COUNT; i++) {
       // bool isFind = false;
       pthread_rwlock_rdlock(&rwlock[i]);
-      auto its = sk[i].equal_range(*(int64_t *)((char *)column_key));
+      auto its = sk[i].equal_range(*(uint64_t *)((char *)column_key));
+      int res_cnt = 0;
       for (auto it = its.first; it != its.second; ++it) {
         result.push_back(it.Second());
+        res_cnt++;
       }
+      auto its2 = sk_must_right[i].equal_range(*(uint64_t *)((char *)column_key));
+      int res_right_cnt = 0;
+      for (auto it = its2.first; it != its2.second; ++it) {
+        // result.push_back(it.Second());
+        res_right_cnt++;
+      }
+      if (res_cnt != res_right_cnt) {
+        spdlog::error("[getPosFromKey] select sk[{}], salary = {}, res_cnt = {}, res_right_cnt = {}", i, *(uint64_t *)((char *)column_key), res_cnt, res_right_cnt);
+      }
+
       pthread_rwlock_unlock(&rwlock[i]);
     }
   }
