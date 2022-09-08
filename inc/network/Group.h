@@ -13,7 +13,7 @@ std::atomic<bool> group_is_deinit = {false};
 std::atomic<bool> client_is_running[PeerHostInfoNum];
 
 
-// static uint8_t remote_pk_in_client[4] = {0};
+static uint8_t remote_pk_in_client[4] = {0,0,0,0};
 
 static bool serverSyncInit() {
   return group_is_runing.load();
@@ -124,15 +124,15 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
   // 1. broadcast phrase1: send
-  // uint64_t id = *(uint64_t *)column_key;
-  // bool is_has_find_server = false;
+  uint64_t id = *(uint64_t *)column_key;
+  bool pk_has_find_server = false;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    // if (where_column == 0 && is_use_remote_pk) {
-    //   if(id < 800000000 && remote_pk_in_client[id/200000000] > 0 && i != remote_pk_in_client[id/200000000] - 1) {
-    //     is_has_find_server = true;
-    //     continue;
-    //   }
-    // }
+    if (where_column == 0 && is_use_remote_pk) {
+      if(id < 800000000 && remote_pk_in_client[id/200000000] > 0 && i != remote_pk_in_client[id/200000000] - 1) {
+        continue;
+      }
+      pk_has_find_server = true;
+    }
     if (!client_is_running[i].load()) continue;
     int ret = client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
     if (ret != 0) {
@@ -143,7 +143,7 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    // if (is_has_find_server && i != remote_pk_in_client[id/200000000] - 1) continue;
+    if (is_has_find_server && i != remote_pk_in_client[id/200000000] - 1) continue;
     if (!client_is_running[i].load()) continue;
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
@@ -152,12 +152,12 @@ static Package clientRemoteGet(int32_t select_column,
     }
 
     //如果查PK，并且查到了
-    // if (where_column == 0 && package.size > 0) {
-    //   if (id < 800000000) {
-    //     //标记要去哪找
-    //     remote_pk_in_client[id / 200000000] = i + 1;
-    //   }
-    // }
+    if (where_column == 0 && package.size > 0) {
+      if (id < 800000000) {
+        //标记要去哪找
+        remote_pk_in_client[id / 200000000] = i + 1;
+      }
+    }
 
     int local_data_len, remote_data_len;
     if (select_column == 0 || select_column == 3) {
