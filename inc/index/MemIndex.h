@@ -7,7 +7,7 @@
 #include "../tools/HashMap/EMHash/emhash5_int64_to_int64.h"
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
-#include "../tools/DenseMap/unordered_dense.h"
+#include "../tools/HashMap/DenseMap/unordered_dense.h"
 #include "../tools/MyHashMap/MyMultiMap.h"
 #include "../tools/MyStrHashMap.h"
 
@@ -70,9 +70,8 @@ struct Str128Hash {
 pthread_rwlock_t rwlock[3][MAX_HASH_MAP_SHARD];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
-static MyMultiMap<uint64_t, uint32_t> sk2; // tudo(wq): 还未使用
-
 static MyUInt64HashMap pk;
+static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
@@ -80,7 +79,7 @@ static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
 // static std::unordered_map<UserId, uint32_t, UserIdHash> uk[HASH_MAP_COUNT];
-static std::unordered_multimap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD]; 
+// static std::unordered_multimap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD]; 
 
 // static std::unordered_map<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
@@ -183,7 +182,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     // pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
     auto its = sk[sk_shard].equal_range(salary);
     for (auto it = its.first; it != its.second; ++it) {
-      result.push_back(it->second);
+      result.push_back(it.Second());
     }
     // pthread_rwlock_unlock(&rwlock[2][sk_shard]);
     // }
