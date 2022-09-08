@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdio>
 #include "../HashMap/DenseMap/unordered_dense.h"
+#include "SafetyEmhash7.h"
 
 // todo(wq): release memory
 // MyMultiMap目前仅仅提供insert和find功能
@@ -12,8 +13,7 @@ class MyMultiMap {
 public:
     struct ValueWrapper;
     typedef typename std::pair<KeyT, ValueT> value_type;
-    // 更换hashmap实现，修改这里即可, emhash7暂时无法使用 https://github.com/ktprime/emhash/issues/14
-    typedef typename ankerl::unordered_dense::map<KeyT, ValueWrapper> Internal_HashMap;
+    typedef typename SafetyEmhash7::HashMap<KeyT, ValueWrapper> Internal_HashMap;
     typedef typename Internal_HashMap::iterator Internal_iterator;
     typedef typename std::pair<KeyT, ValueWrapper> internal_value_type;
 
