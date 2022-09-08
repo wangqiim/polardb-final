@@ -127,8 +127,8 @@ static Package clientRemoteGet(int32_t select_column,
   uint64_t id = *(uint64_t *)column_key;
   bool pk_has_find_server = false;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (where_column == 0 && is_use_remote_pk) {
-      if(id < 800000000 && remote_pk_in_client[id/200000000] > 0 && i != remote_pk_in_client[id/200000000] - 1) {
+    if (where_column == 0 && is_use_remote_pk && id < 800000000 && remote_pk_in_client[id/200000000] > 0) {
+      if(i != remote_pk_in_client[id/200000000] - 1) {
         continue;
       }
       pk_has_find_server = true;
@@ -143,7 +143,7 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (is_has_find_server && i != remote_pk_in_client[id/200000000] - 1) continue;
+    if (pk_has_find_server && i != remote_pk_in_client[id/200000000] - 1) continue;
     if (!client_is_running[i].load()) continue;
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
