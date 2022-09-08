@@ -12,9 +12,6 @@ std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
 std::atomic<bool> client_is_running[PeerHostInfoNum];
 
-
-static uint8_t remote_pk_in_client[4] = {0,0,0,0};
-
 static bool serverSyncInit() {
   return group_is_runing.load();
 }
@@ -123,12 +120,14 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 // 2. 依次从3个节点读取数据(read)
 static Package clientRemoteGet(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
+  //每个线程自己维护remote_server
+  static thread_local uint8_t remote_pk_in_client[4] = {0,0,0,0};
   // 1. broadcast phrase1: send
-  uint64_t id = *(uint64_t *)column_key;
+  uint64_t id_to_server = (*(uint64_t *)column_key) / 200000000;
   bool pk_has_find_server = false;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (where_column == 0 && is_use_remote_pk && id < 800000000 && remote_pk_in_client[id/200000000] > 0) {
-      if(i != remote_pk_in_client[id/200000000] - 1) {
+    if (where_column == 0 && is_use_remote_pk && id_to_server < 4 && remote_pk_in_client[id_to_server] > 0) {
+      if(i != remote_pk_in_client[id_to_server] - 1) {
         continue;
       }
       pk_has_find_server = true;
@@ -143,7 +142,7 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (pk_has_find_server && i != remote_pk_in_client[id/200000000] - 1) continue;
+    if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
     if (!client_is_running[i].load()) continue;
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
@@ -153,9 +152,9 @@ static Package clientRemoteGet(int32_t select_column,
 
     //如果查PK，并且查到了
     if (where_column == 0 && package.size > 0) {
-      if (id < 800000000) {
+      if (id_to_server < 4) {
         //标记要去哪找
-        remote_pk_in_client[id / 200000000] = i + 1;
+        remote_pk_in_client[id_to_server] = i + 1;
       }
     }
 
