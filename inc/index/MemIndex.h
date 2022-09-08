@@ -168,6 +168,8 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
       }
       if (res_cnt != res_right_cnt) {
         spdlog::error("[getPosFromKey] select sk[{}], salary = {}, res_cnt = {}, res_right_cnt = {}", i, *(uint64_t *)((char *)column_key), res_cnt, res_right_cnt);
+      } else {
+        spdlog::info("[getPosFromKey] select sk[{}], salary = {}, res_cnt = {}, res_right_cnt = {}", i, *(uint64_t *)((char *)column_key), res_cnt, res_right_cnt);
       }
 
       pthread_rwlock_unlock(&rwlock[i]);
