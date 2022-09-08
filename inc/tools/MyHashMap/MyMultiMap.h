@@ -2,7 +2,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdio>
-#include "../HashMap/EMHash/emhash7_int64_to_int32.h"
+#include "unordered_dense.h"
 
 // todo(wq): release memory
 // MyMultiMap目前仅仅提供insert和find功能
@@ -12,7 +12,7 @@ class MyMultiMap {
 public:
     struct ValueWrapper;
     typedef typename std::pair<KeyT, ValueT> value_type;
-    typedef typename emhash7::HashMap<KeyT, ValueWrapper> Internal_HashMap; // 更换hashmap实现，修改这里即可
+    typedef typename ankerl::unordered_dense::map<KeyT, ValueWrapper> Internal_HashMap; // 更换hashmap实现，修改这里即可
     typedef typename Internal_HashMap::iterator Internal_iterator;
     typedef typename std::pair<KeyT, ValueWrapper> internal_value_type;
 
@@ -79,14 +79,15 @@ public:
         size_t no_;
     };
 
-    MyMultiMap() {};
+    MyMultiMap(): size_(0) {};
     iterator begin() { return iterator(internal_.begin(), 0); }
     iterator end() { return iterator(internal_.end(), 0); }
-    bool reserve(uint64_t num_elems) { return internal_.reserve(num_elems); }
+    void reserve(uint64_t num_elems) { internal_.reserve(num_elems); }
     uint64_t size() const { return size_; }
     
     // todo(wq): 修改返回值
     iterator insert(value_type &&kv_pair) {
+        size_++;
         auto res = internal_.insert(internal_value_type(std::move(kv_pair.first), ValueWrapper(std::move(kv_pair.second))));
         if (res.second == true) {
             // 不存在重复元素
