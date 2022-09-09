@@ -1,4 +1,4 @@
 *.DS_DStore
-build/*
+/build/
 .vscode/*
-cmake-build-debug/*
+/cmake-build-debug/
