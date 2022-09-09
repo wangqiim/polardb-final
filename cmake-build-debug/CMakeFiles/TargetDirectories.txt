@@ -1,8 +1,0 @@
-/home/hrh/game/cpp_demo/cmake-build-debug/CMakeFiles/interface.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/third_party/CMakeFiles/edit_cache.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/third_party/CMakeFiles/rebuild_cache.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/third_party/spdlog/CMakeFiles/spdlog.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/third_party/spdlog/CMakeFiles/edit_cache.dir
-/home/hrh/game/cpp_demo/cmake-build-debug/third_party/spdlog/CMakeFiles/rebuild_cache.dir

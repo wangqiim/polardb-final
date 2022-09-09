@@ -1,6 +1,0 @@
-# ninja log v5
-0	97	1662733756446282984	CMakeFiles/interface.dir/src/BlizzardHashMap.cpp.o	73490d583ce6923f
-1	625	1662733756974258433	CMakeFiles/interface.dir/src/test_main.cpp.o	c14cbadaa543fe1d
-1	1102	1662733757450236301	CMakeFiles/interface.dir/src/xxhash.cpp.o	10acebc6899da3ac
-0	8848	1662733765193876252	CMakeFiles/interface.dir/src/interface.cpp.o	d431c883988461dc
-8850	8922	1662733765269872719	libinterface.so	71c3ee6e6572af47
