@@ -58,7 +58,9 @@ public:
         : pos(pos_value), id(id_value), salary(salary_value) {}
 };
 
-pthread_rwlock_t rwlock[3][MAX_HASH_MAP_SHARD];
+pthread_rwlock_t uk_rwlock[UK_HASH_MAP_SHARD];
+pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
+
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyUInt64HashMap pk;
@@ -80,12 +82,12 @@ static void initIndex() {
 
   for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
     uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
-    pthread_rwlock_init(&rwlock[1][i], NULL);
+    pthread_rwlock_init(&uk_rwlock[i], NULL);
   }
 
   for (size_t i = 0; i < SK_HASH_MAP_SHARD; i++) {
     sk[i].reserve(TOTAL_WRITE_NUM / SK_HASH_MAP_SHARD + 1);
-    pthread_rwlock_init(&rwlock[2][i], NULL);
+    pthread_rwlock_init(&sk_rwlock[i], NULL);
   }
 
   spdlog::info("Init Index End");
@@ -104,8 +106,8 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     uint64_t sk_shard = sk_shardhashfn(salary);
 
     //获取所有锁
-    pthread_rwlock_wrlock(&rwlock[1][uk_shard]);
-    pthread_rwlock_wrlock(&rwlock[2][sk_shard]);
+    pthread_rwlock_wrlock(&uk_rwlock[uk_shard]);
+    pthread_rwlock_wrlock(&sk_rwlock[sk_shard]);
 
     // 1. insert pk index
     pk.insert(id, pos);
@@ -120,8 +122,8 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
 
     //释放所有锁
-    pthread_rwlock_unlock(&rwlock[1][uk_shard]);
-    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
+    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
 
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
@@ -190,12 +192,12 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
     // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
     uint64_t sk_shard = sk_shardhashfn(salary);
-    pthread_rwlock_rdlock(&rwlock[2][sk_shard]);
+    pthread_rwlock_rdlock(&sk_rwlock[sk_shard]);
     auto its = sk[sk_shard].equal_range(salary);
     for (auto it = its.first; it != its.second; ++it) {
       result.push_back(it.Second());
     }
-    pthread_rwlock_unlock(&rwlock[2][sk_shard]);
+    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
     // }
   }
 
