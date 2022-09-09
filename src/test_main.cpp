@@ -131,9 +131,13 @@ bool test_is_ok(void *ctx) {
     std::cout << "查询 name = " << to_hex2(name, 128) << std::endl;
     std::cout << "where user_id = " << to_hex2(user.user_id, 128) << std::endl;
     std::cout << "Count = " << record_count << std::endl;
-    // if(record_count != 1) {
-    //     return false;
-    // }
+
+    record_count = engine_read(ctx, Id, Userid, user.user_id, 128, res);
+    uint64_t id;
+    memcpy(&id, res, 8);
+    std::cout << "查询 id = " << id << std::endl;
+    std::cout << "where user_id = " << to_hex2(user.user_id, 128) << std::endl;
+    std::cout << "Count = " << record_count << std::endl;
 
     record_count = engine_read(ctx, Userid, Id, &user.id, 8, res);
     unsigned char userid[128];

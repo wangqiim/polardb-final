@@ -49,22 +49,13 @@ struct UserIdHash {
     }
 };
 
-class Str128 {
+class Value {
 public:
-  char data[128];
-	Str128(const char *str){
-    memcpy(data, str, 128);
-	}
-	bool operator==(const Str128 & p) const 
-	{
-    return memcmp(p.data, data, 128) == 0;
-	}  
-};
-
-struct Str128Hash {
-    size_t operator()(const Str128& rhs) const{
-      return XXH3_64bits(rhs.data, 128);
-    }
+    uint32_t pos;
+    uint64_t id;
+    uint64_t salary;
+    Value(uint32_t pos_value, int64_t id_value, int64_t salary_value)
+        : pos(pos_value), id(id_value), salary(salary_value) {}
 };
 
 pthread_rwlock_t rwlock[3][MAX_HASH_MAP_SHARD];
@@ -74,7 +65,7 @@ static MyUInt64HashMap pk;
 static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static emhash7::HashMap<UserId, Value, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 // static std::unordered_map<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
@@ -124,7 +115,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     // pk[pk_shard].insert(std::pair<uint64_t, uint32_t>(id, pos));
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
     // 2. insert uk index
-    uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
+    uk[uk_shard].insert(std::pair<UserId, Value>(UserId(uk_hash), Value(pos, id, salary)));
     // 3. insert sk index
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
 
@@ -135,7 +126,27 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
     thread_pos[tid]++;
-} 
+}
+
+static int getValueFromUK(int32_t select_colum, const void *column_key, bool is_local, void *res) {
+    UserId uid;
+    if(is_local) {
+        uid = UserId((char *)column_key);
+    } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
+        memcpy(&uid.hashCode, (char *)column_key, 8);
+    }
+    uint32_t uk_shard = shardhashfn(uid.hashCode);
+    auto it = uk[uk_shard].find(uid);
+    if (it != uk[uk_shard].end()) {
+        if (select_colum == 0) {
+            memcpy(res, &it->second.id, 8);
+        } else if (select_colum == 3) {
+            memcpy(res, &it->second.salary, 8);
+        }
+        return 1;
+    }
+    return 0;
+}
 
 static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
   std::vector<uint32_t> result;
@@ -170,7 +181,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     // pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
-      result.push_back(it->second);
+      result.push_back(it->second.pos);
     } 
     // pthread_rwlock_unlock(&rwlock[1][uk_shard]);
   }

@@ -87,28 +87,34 @@ static size_t Get(int32_t select_column,
       }
     }
     // 3. 尝试从本地读
-    std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
-    uint32_t result_bytes = 0;
-    if (posArray.size() > 0){
-      for (uint32_t pos : posArray) {
-        readColumFromPos(select_column, pos, res);
-        if(select_column == Id || select_column == Salary) {
-          result_bytes += 8;
-          res = (char *)res + 8;
-        } 
-        if(select_column == Userid || select_column == Name) {
-          result_bytes += 128;
-          res = (char *)res + 128;
+    size_t local_get_count = 0;
+    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
+        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
+    } else {
+        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
+        uint32_t result_bytes = 0;
+        if (posArray.size() > 0) {
+            for (uint32_t pos: posArray) {
+                readColumFromPos(select_column, pos, res);
+                if (select_column == Id || select_column == Salary) {
+                    result_bytes += 8;
+                    res = (char *) res + 8;
+                }
+                if (select_column == Userid || select_column == Name) {
+                    result_bytes += 128;
+                    res = (char *) res + 128;
+                }
+                if (result_bytes >= 2000 * 8) {
+                    spdlog::error("result overflow!!!!!!");
+                    exit(1);
+                }
+            }
+            if (where_column != Salary) return posArray.size();
         }
-        if (result_bytes >= 2000 * 8) {
-          spdlog::error("result overflow!!!!!!");
-          exit(1);
-        }
-      }
-      if (where_column != Salary) return posArray.size();
+        local_get_count = posArray.size();
     }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
-    if ((posArray.size() == 0 || where_column == Salary) && is_local) {
+    if ((local_get_count == 0 || where_column == Salary) && is_local) {
       if (where_column == 0) pk_remote_count++;
       if (where_column == 1) uk_remote_count++;
       if (where_column == 3) sk_remote_count++;
@@ -125,9 +131,9 @@ static size_t Get(int32_t select_column,
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
       if(select_column == Userid || select_column == Name) dataSize = result.size * 128;      
       memcpy(res, result.data, dataSize);
-      return result.size + posArray.size(); 
+      return result.size + local_get_count;
     }
-    return posArray.size();
+    return local_get_count;
 }
 
 static Package remoteGet(int32_t select_column,

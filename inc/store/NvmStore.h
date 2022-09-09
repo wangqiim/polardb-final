@@ -23,6 +23,11 @@ struct PmemBlockMeta {
   uint64_t offset = 0;
 }PBM[50];
 
+struct MemBlockMeta {
+  char *address = nullptr;
+  uint64_t offset = 0; 
+}MBM[50];
+
 static inline void print_time(struct timeval t1, struct timeval t2) {
   double timeuse = (t2.tv_sec - t1.tv_sec) + (double)(t2.tv_usec - t1.tv_usec)/1000000.0;
   spdlog::info("time = {}s", timeuse);
