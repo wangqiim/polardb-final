@@ -94,10 +94,10 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
 }
 
 static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
-  pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple + 8, 128);
-  pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset + 128, tuple + 136, 128);
   memcpy(MBM[tid].address + MBM[tid].offset, tuple, 8);
   memcpy(MBM[tid].address + MBM[tid].offset + 8, tuple + 264, 8);
+  pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple + 8, 128);
+  pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset + 128, tuple + 136, 128);
   uint32_t pos = (PBM[tid].offset / PMEM_RECORD_SIZE) + 1;
   pmem_memcpy_nodrain(PBM[tid].address - 4, &pos, 4);
   pmem_drain();
