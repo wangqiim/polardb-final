@@ -61,7 +61,7 @@ static void create_metal(std::string path, int i, bool is_pmem) {
         }
     }
     if (is_pmem) {
-        mmap_size = PMEM_RECORD_SIZE * PER_THREAD_MAX_WRITE + COMMIT_FLAG_SIZE;
+        mmap_size = PMEM_RECORD_SIZE * PER_THREAD_MAX_WRITE;
         int is_pmem;
         size_t mapped_len;
         /* create a pmem file and memory map it */
@@ -69,15 +69,15 @@ static void create_metal(std::string path, int i, bool is_pmem) {
                                                      0666, &mapped_len, &is_pmem)) == NULL ) {
           spdlog::error("pmem_map_file");
         }
-      PBM[i].address += COMMIT_FLAG_SIZE;
     } else {
-        MBM[i].address = (char *)mmap(0, mmap_size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+      MBM[i].address = (char *)mmap(0, mmap_size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+      MBM[i].address += COMMIT_FLAG_SIZE;
     }
     if (is_create) {
         if (is_pmem) {
-            pmem_memset_nodrain(PBM[i].address - COMMIT_FLAG_SIZE, 0, mmap_size);
+            pmem_memset_nodrain(PBM[i].address, 0, mmap_size);
         } else {
-            memset(MBM[i].address, 0, mmap_size);
+            memset(MBM[i].address - COMMIT_FLAG_SIZE, 0, mmap_size);
             close(fd);
         }
     }
@@ -99,7 +99,7 @@ static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, ui
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple + 8, 128);
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset + 128, tuple + 136, 128);
   uint32_t pos = (PBM[tid].offset / PMEM_RECORD_SIZE) + 1;
-  pmem_memcpy_nodrain(PBM[tid].address - 4, &pos, 4);
+  memcpy(MBM[tid].address - 4, &pos, 4);
   pmem_drain();
   PBM[tid].offset += PMEM_RECORD_SIZE;
   MBM[tid].offset += MEM_RECORD_SIZE;
@@ -130,7 +130,7 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
 static void recovery() {
   uint64_t recovery_cnt = 0;
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
-    uint32_t commit_cnt = *(uint32_t *)(PBM[i].address - 4);
+    uint32_t commit_cnt = *(uint32_t *)(MBM[i].address - 4);
     for (uint64_t j = 0; j < commit_cnt; j++) {
       unsigned char tuple[RECORD_SIZE];
       memcpy(tuple, MBM[i].address + MBM[i].offset, 8);
