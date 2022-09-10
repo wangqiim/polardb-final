@@ -101,7 +101,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     uint64_t sk_shard = sk_shardhashfn(salary);
 
     //获取所有锁
-//    pthread_rwlock_wrlock(&uk_rwlock[uk_shard]);
+    pthread_rwlock_wrlock(&uk_rwlock[uk_shard]);
     pthread_rwlock_wrlock(&sk_rwlock[sk_shard]);
 
     // 1. insert pk index
@@ -113,12 +113,12 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
     // 2. insert uk index
 //    uk[uk_shard].insert(std::pair<UserId, Value>(UserId(uk_hash), Value(pos, id, salary)));
-   uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
+    uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
   // 3. insert sk index
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
 
     //释放所有锁
-//    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
+    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
     pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
 
     if (id > local_max_pk) local_max_pk = id;
