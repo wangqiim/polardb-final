@@ -206,11 +206,11 @@ int main()
 {
     const char *myIp = "127.0.0.1:9000";
     const char *server[3] = {"127.0.0.1:9000","127.0.0.1:9000", "127.0.0.1:9000"};
-    void* ctx = engine_init(myIp, server, 3, "/mnt/pmem0/pmemData", "./");
+    void* ctx = engine_init(myIp, server, 3, "/mnt/pmem0/pmemData/", "./");
     struct timeval t1,t2;
     double timeuse;
     gettimeofday(&t1,NULL);
-    // test_write(ctx);
+//     test_write(ctx);
     // engine_deinit(nullptr);
     // test_read(ctx);
 

@@ -6,6 +6,9 @@
 //原始record的长度
 const uint64_t RECORD_SIZE = 272;
 
+const uint64_t PMEM_RECORD_SIZE = 256;
+const uint64_t MEM_RECORD_SIZE = 16;
+
 //表空间大小
 const uint64_t TABLE_SIZE = 50000005;
 const uint64_t TOTAL_WRITE_NUM = 2e8; // 复赛单节点总写入2亿数据
