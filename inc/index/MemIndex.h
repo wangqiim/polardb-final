@@ -67,7 +67,7 @@ static MyUInt64HashMap pk;
 static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static std::unordered_map<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 //static emhash7::HashMap<UserId, Value, UserIdHash> uk[UK_HASH_MAP_SHARD];
 
@@ -176,12 +176,12 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     }
     
     uint32_t uk_shard = shardhashfn(uid.hashCode);
-    // pthread_rwlock_rdlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
       result.push_back(it->second);
     } 
-    // pthread_rwlock_unlock(&rwlock[1][uk_shard]);
+    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   }
   if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
