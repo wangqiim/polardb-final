@@ -131,7 +131,6 @@ static void recovery() {
   uint64_t recovery_cnt = 0;
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint32_t commit_cnt = *(uint32_t *)(PBM[i].address - 4);
-    spdlog::info("ready recovery {} tuples", commit_cnt);
     for (uint64_t j = 0; j < commit_cnt; j++) {
       unsigned char tuple[RECORD_SIZE];
       memcpy(tuple, MBM[i].address + MBM[i].offset, 8);
