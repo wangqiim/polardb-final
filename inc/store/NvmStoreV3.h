@@ -11,6 +11,8 @@
 #include "Config.h"
 #include "./index/MemIndexV2.h"
 
+const uint64_t NVSTORE_WRITE_NUM = 1<<28; // 复赛单节点总写入2亿数据
+
 class User
 {
 public:
@@ -79,8 +81,8 @@ static void create_pmem_metal(PmemBlockMeta &meta, std::string path, size_t mmap
 
 static void initStore(const char* aep_dir,  const char* disk_dir) {
   spdlog::info("get sys pmem dir: {} ssd dir: {}", aep_dir, disk_dir);
-  create_mem_metal(MBM, std::string(disk_dir) + "mem.pool", 9 * TOTAL_WRITE_NUM + COMMIT_FLAG_SIZE);
-  create_pmem_metal(PBM, std::string(aep_dir) + "pmem.pool", PMEM_RECORD_SIZE * TOTAL_WRITE_NUM);
+  create_mem_metal(MBM, std::string(disk_dir) + "mem.pool", 9 * NVSTORE_WRITE_NUM + COMMIT_FLAG_SIZE);
+  create_pmem_metal(PBM, std::string(aep_dir) + "pmem.pool", PMEM_RECORD_SIZE * NVSTORE_WRITE_NUM);
   create_pmem_metal(PRBM ,std::string(aep_dir) + "rpmem.pool", 8 * 100000 + COMMIT_FLAG_SIZE);
   MBM.address += COMMIT_FLAG_SIZE;
   PRBM.address += COMMIT_FLAG_SIZE;
@@ -154,7 +156,7 @@ static void recovery() {
     recovery_cnt++;
   }
   spdlog::info("current count {} need recovery {} tuple", recovery_cnt, commit_cnt);
-  for (uint64_t index = 0; index < TOTAL_WRITE_NUM; index++) {
+  for (uint64_t index = 0; index < NVSTORE_WRITE_NUM; index++) {
     //空数据的跳过
     if (rid_set.find(index) == rid_set.end() && (*(uint8_t *)(MBM.address + index * 9 + 8)) == 1) {
       unsigned char tuple[RECORD_SIZE];
