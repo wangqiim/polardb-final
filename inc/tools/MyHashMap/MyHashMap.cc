@@ -8,7 +8,14 @@ int main() {
     mp.reserve(4);
 
     assert(mp.begin() == mp.end());
-    mp.insert({1, 2});
+    {
+        auto res = mp.insert({1, 2});
+        assert(res.second == true);
+    }
+    {
+        auto res = mp.insert({1, 2});
+        assert(res.second == false);
+    }
     mp.insert({2, 3});
     assert(mp.begin() != mp.end());
     assert(mp.size() == 2);
