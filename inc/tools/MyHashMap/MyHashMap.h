@@ -101,20 +101,26 @@ public:
   }
   iterator end() { return iterator(buckets_, bucket_cnt_, bucket_cnt_, 0); }
 
-  iterator insert(value_type &&kv_pair) {
+  std::pair<iterator, bool> insert(value_type &&kv_pair) {
     size_++;
     uint64_t bucket_id = hasher_(kv_pair.first) % bucket_cnt_;
+    for (uint64_t i = 0; i < buckets_[bucket_id].value_cnt; i++) {
+      auto iter = iterator(buckets_, bucket_id, bucket_cnt_, i);
+      if (equaler_(iter->first, kv_pair.first)) {
+        return {iter, false};
+      }
+    }
     if (buckets_[bucket_id].value_cnt  < InplaceValueNum) { // 原地还有空
       auto write_idx = buckets_[bucket_id].value_cnt++;
       buckets_[bucket_id].inplace_value[write_idx] = std::move(kv_pair);
-      return iterator(buckets_, bucket_id, bucket_cnt_, write_idx);
+      return {iterator(buckets_, bucket_id, bucket_cnt_, write_idx), true};
     }
     if (buckets_[bucket_id].value_cnt == InplaceValueNum) { // 原地没空
       buckets_[bucket_id].ptr = new std::vector<value_type>();
     }
     auto write_idx = buckets_[bucket_id].value_cnt++;
     buckets_[bucket_id].ptr->emplace_back(std::move(kv_pair));
-    return iterator(buckets_, bucket_id, bucket_cnt_,  write_idx);
+    return {iterator(buckets_, bucket_id, bucket_cnt_,  write_idx), true};
   }
 
   iterator find(const KeyT& key) {
