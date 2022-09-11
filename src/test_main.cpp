@@ -101,7 +101,7 @@ bool test_is_ok(void *ctx) {
     TestUser user;
     char res[2000*128];
     user.id = 340000;
-    user.salary = 340000;
+    user.salary = 340001;
     memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {33,74,26,47,77,91,7,8,79,65,18,51,5,16,8,9,59,15,17,23,66,8,85,4,7,27,15,20,54,4,55,20,28,61,77,14,33,8,15,76,13,24,23,12,3,34,95,31,40,1,101,1,15,23,5,29,6,12,28,11,42,22,6,1,72,10,8,20,59,35,2,17,79,11,25,40,45,9,6,10,75,24,34,18,32,15,54,101,5,42,42,2,9,41,74,14,6,51,11,86,5,21,75,11,62,5,22,17,19,45,56,1,48,45,96,25,7,3,8,86,43,22,74,13,37,34,110,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
@@ -194,9 +194,9 @@ void write_400M (__attribute__((unused)) void* ctx) {
     for(unsigned long i = 0; i < 100000UL; i++) {
         TestUser user;
         user.id = id * 100000UL + i;
-        user.salary = user.id + user.id % 10000;
+        user.salary = user.id + user.id % 10000 + 1;
         memcpy(user.name,randstr(128).c_str(),128);
-        memcpy(user.user_id,randstr(128).c_str(),128); 
+        memcpy(user.user_id,randstr(128).c_str(),128);
         outFile.write((char *)&user, sizeof(user));
     }
     outFile.close();
@@ -214,10 +214,10 @@ int main()
     // engine_deinit(nullptr);
     // test_read(ctx);
 
-    // for(int i = 0; i < 50; ++i)
-    // {   
-    //     write_400M(nullptr);
-    // }
+//     for(int i = 0; i < 50; ++i)
+//     {
+//         write_400M(nullptr);
+//     }
 
     if(test_is_ok(ctx)) {
         std::cout << "正确性验证成功！" << std::endl;
