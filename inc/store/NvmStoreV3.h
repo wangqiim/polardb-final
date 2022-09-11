@@ -165,7 +165,6 @@ static void recovery() {
       recovery_cnt++;
       if (recovery_cnt >= commit_cnt) break;
     }
-    index++;
   }
   spdlog::info("recovery {} tuples", recovery_cnt);
   spdlog::info("RECOVERY END");
