@@ -82,7 +82,7 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   spdlog::info("get sys pmem dir: {} ssd dir: {}", aep_dir, disk_dir);
   create_mem_metal(MBM, std::string(disk_dir) + "mem.pool", 9 * TOTAL_WRITE_NUM + COMMIT_FLAG_SIZE);
   create_pmem_metal(PBM, std::string(aep_dir) + "pmem.pool", PMEM_RECORD_SIZE * TOTAL_WRITE_NUM);
-  create_pmem_metal(PRBM ,std::string(aep_dir) + "rpmem.pool", 8 * 1000000);
+  create_pmem_metal(PRBM ,std::string(aep_dir) + "rpmem.pool", RECORD_SIZE * 1000000);
   MBM.address += COMMIT_FLAG_SIZE;
   PRBM.address += COMMIT_FLAG_SIZE;
   recovery();
@@ -92,42 +92,67 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
 std::mutex rid_mutex;
 static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
   uint64_t id = *(uint64_t *)tuple;
-  if (id >= 8e8) {
-    //互斥存储原始值
+  uint64_t index = id & mod;
+  if (index >= 2e8) {
+    //互斥存储
     rid_mutex.lock();
-    pmem_memcpy_nodrain(PRBM.address + PRBM.offset * 8, tuple, 8);
+    pmem_memcpy_nodrain(PRBM.address + PRBM.offset * RECORD_SIZE, tuple, len);
     PRBM.offset++;
     pmem_memcpy_nodrain(PRBM.address - 4, &PRBM.offset, 4);
     rid_mutex.unlock();
+  } else {
+    pmem_memcpy_nodrain(PBM.address + index * PMEM_RECORD_SIZE, tuple + 8, 256);
+    pmem_drain();
+
+    memcpy(MBM.address + index * 9, tuple + 264, 8);
+    uint8_t flag = 1;
+    memcpy(MBM.address + index * 9 + 8, &flag, 1);
+
+    write_count++;
+    memcpy(MBM.address - 4, &write_count, 4);
   }
-  uint64_t index = id & mod;
-  pmem_memcpy_nodrain(PBM.address + index * PMEM_RECORD_SIZE, tuple + 8, 256);
-  pmem_drain();
-
-  memcpy(MBM.address + index * 9, tuple + 264, 8);
-  uint8_t flag = 1;
-  memcpy(MBM.address + index * 9 + 8, &flag, 1);
-
-  write_count++;
-  memcpy(MBM.address - 4, &write_count, 4);
 }
 
 static void readColumFromPos(int32_t select_column, uint64_t id, void *res) {
-  id = id & mod;
+  uint64_t index = id & mod;
+  if (index >= 2e8) {
+    for (uint32_t i = 0; i < 1000000; i++) {
+      User *user = (User *)(PRBM.address + i * RECORD_SIZE);
+      if (user->id == id) {
+        if (select_column == Id) {
+          memcpy(res, &user->id, 8);
+          return;
+        }
+        if (select_column == Userid) {
+          memcpy(res, user->user_id, 128);
+          return;
+        }
+        if (select_column == Name) {
+          memcpy(res, user->name, 128);
+          return;
+        }
+        if (select_column == Salary) {
+          memcpy(res, &user->salary, 8);
+          return;
+        }
+      }
+    }
+    return;
+  }
   if (select_column == Id) {
     memcpy(res, &id, 8);
     return;
   }
   if (select_column == Userid) {
-    memcpy(res, PBM.address + id * PMEM_RECORD_SIZE, 128);
+    memcpy(res, PBM.address + index * PMEM_RECORD_SIZE, 128);
     return;
   }
   if (select_column == Name) {
-    memcpy(res, PBM.address + id * PMEM_RECORD_SIZE + 128, 128);
+    memcpy(res, PBM.address + index * PMEM_RECORD_SIZE + 128, 128);
     return;
   }
   if (select_column == Salary) {
-    memcpy(res, MBM.address + id * 9, 8);
+    memcpy(res, MBM.address + index * 9, 8);
     return;
   }
 }
@@ -135,35 +160,27 @@ static void readColumFromPos(int32_t select_column, uint64_t id, void *res) {
 // build index
 static void recovery() {
   uint64_t recovery_cnt = 0;
-  //需要恢复条数
+  //正常的数量
   uint32_t commit_cnt = *(uint32_t *)(MBM.address - 4);
-  std::set<uint64_t> rid_set;
-  //恢复随机id
+  //恢复随机id的数量
   uint32_t rid_cont = *(uint32_t *)(PRBM.address - 4);
   for (uint32_t i = 0; i < rid_cont; i++) {
-    unsigned char tuple[RECORD_SIZE];
-    uint64_t id = *(uint64_t *)(PRBM.address + PRBM.offset * 8);
-    memcpy(tuple, &id, 8);
-    id &= mod;
-    memcpy(tuple + 8, PBM.address + id * PMEM_RECORD_SIZE, 256);
-    memcpy(tuple + 264, MBM.address + id * 8, 8);
-    insert((const char *)tuple, RECORD_SIZE, 0);
+    User *user = (User *)(PRBM.address + i * RECORD_SIZE);
+    insert((const char *)user, RECORD_SIZE, 0);
     PRBM.offset++;
     recovery_cnt++;
-    rid_set.insert(id);
   }
   spdlog::info("current count {} need recovery {} tuple", recovery_cnt, commit_cnt);
   for (uint64_t index = 0; index < TOTAL_WRITE_NUM; index++) {
-    //已经恢复过的，空数据的跳过
-    if (rid_set.find(index) == rid_set.end() && (*(uint8_t *)(MBM.address + index * 9 + 8)) != 0) {
-//      spdlog::info("need recovery {} tuple, index {} ", recovery_cnt, index);
+    //空数据的跳过
+    if ((*(uint8_t *)(MBM.address + index * 9 + 8)) != 0) {
       unsigned char tuple[RECORD_SIZE];
       memcpy(tuple, &index, 8);
       memcpy(tuple + 8, PBM.address + index * PMEM_RECORD_SIZE, 256);
       memcpy(tuple + 264, MBM.address + index * 9, 8);
       insert((const char *) tuple, RECORD_SIZE, 0);
       recovery_cnt++;
-      if (recovery_cnt >= commit_cnt) break;
+      if (recovery_cnt >= commit_cnt + rid_cont) break;
     }
   }
   spdlog::info("recovery {} tuples", recovery_cnt);
