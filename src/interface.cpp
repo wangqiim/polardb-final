@@ -19,7 +19,7 @@ void* engine_init(const char* host_info, const char* const* peer_host_info, size
                   const char* aep_dir, const char* disk_dir) {
     spdlog::set_level(spdlog::level::info);
     call_init_num++;
-    spdlog::info("version [without remoteGet backoff], call engine_init times = {}", call_init_num);
+    spdlog::info("version [MyHashMap uk:sk = 50:50], call engine_init times = {}", call_init_num);
     initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
 
     return nullptr;
