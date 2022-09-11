@@ -11,6 +11,8 @@
 #include "../tools/MyHashMap/MyMultiMap.h"
 #include "../tools/MyStrHashMap.h"
 
+const uint64_t NVSTORE_WRITE_NUM = 1<<28; // 复赛单节点总写入2亿数据
+
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
 
 static uint64_t blizardhashfn(const char *key) {
@@ -76,12 +78,12 @@ static void initIndex() {
   memset(thread_pos, 0, sizeof(thread_pos));
 
   for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
-    uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
+    uk[i].reserve(NVSTORE_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
     pthread_rwlock_init(&uk_rwlock[i], NULL);
   }
 
   for (size_t i = 0; i < SK_HASH_MAP_SHARD; i++) {
-    sk[i].reserve(TOTAL_WRITE_NUM / SK_HASH_MAP_SHARD + 1);
+    sk[i].reserve(NVSTORE_WRITE_NUM / SK_HASH_MAP_SHARD + 1);
     pthread_rwlock_init(&sk_rwlock[i], NULL);
   }
 

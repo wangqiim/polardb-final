@@ -11,8 +11,6 @@
 #include "Config.h"
 #include "./index/MemIndexV2.h"
 
-const uint64_t NVSTORE_WRITE_NUM = 1<<28; // 复赛单节点总写入2亿数据
-
 class User
 {
 public:
