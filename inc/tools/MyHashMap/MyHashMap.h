@@ -1,10 +1,10 @@
+#pragma once
 #include <iostream>
 #include <vector>
 
 // !!!!!!!! 使用之前必须先reserve !!!!!!!!!!!!
 // MyHashMap目前仅仅提供insert和find功能
 // 不提供扩容操作，因此需要提前选择合适的值，进行reserve
-// 出于性能的考虑，当插入重复的值时，不会进行检查，会重复插入。
 
 /**
  * 对于每个桶的数据组织结构
@@ -49,7 +49,7 @@ public:
       }
 
       // 将两个容器的迭代器进行比较是ub的
-      bool operator==(const iterator& rhs) const { return cur_idx_ == cur_idx_ && value_no_ == rhs.value_no_; }
+      bool operator==(const iterator& rhs) const { return cur_idx_ == rhs.cur_idx_ && value_no_ == rhs.value_no_; }
       bool operator!=(const iterator& rhs) const { return cur_idx_ != rhs.cur_idx_ || value_no_ != rhs.value_no_; }
 
       // ++i 注意，如果当前iter已经是end()，则++不会产生任何影响
@@ -101,20 +101,26 @@ public:
   }
   iterator end() { return iterator(buckets_, bucket_cnt_, bucket_cnt_, 0); }
 
-  iterator insert(value_type &&kv_pair) {
-    size_++;
+  std::pair<iterator, bool> insert(value_type &&kv_pair) {
     uint64_t bucket_id = hasher_(kv_pair.first) % bucket_cnt_;
+    for (uint64_t i = 0; i < buckets_[bucket_id].value_cnt; i++) {
+      auto iter = iterator(buckets_, bucket_id, bucket_cnt_, i);
+      if (equaler_(iter->first, kv_pair.first)) {
+        return {iter, false};
+      }
+    }
+    size_++;
     if (buckets_[bucket_id].value_cnt  < InplaceValueNum) { // 原地还有空
       auto write_idx = buckets_[bucket_id].value_cnt++;
       buckets_[bucket_id].inplace_value[write_idx] = std::move(kv_pair);
-      return iterator(buckets_, bucket_id, bucket_cnt_, write_idx);
+      return {iterator(buckets_, bucket_id, bucket_cnt_, write_idx), true};
     }
     if (buckets_[bucket_id].value_cnt == InplaceValueNum) { // 原地没空
       buckets_[bucket_id].ptr = new std::vector<value_type>();
     }
     auto write_idx = buckets_[bucket_id].value_cnt++;
     buckets_[bucket_id].ptr->emplace_back(std::move(kv_pair));
-    return iterator(buckets_, bucket_id, bucket_cnt_,  write_idx);
+    return {iterator(buckets_, bucket_id, bucket_cnt_,  write_idx), true};
   }
 
   iterator find(const KeyT& key) {
