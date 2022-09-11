@@ -8,6 +8,7 @@
 #include "../tools/HashMap/EMHash/emhash7_int64_to_int32.h"
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 #include "../tools/HashMap/DenseMap/unordered_dense.h"
+#include "../tools/MyHashMap/MyHashMap.h"
 #include "../tools/MyHashMap/MyMultiMap.h"
 #include "../tools/MyStrHashMap.h"
 
@@ -67,7 +68,7 @@ static MyUInt64HashMap pk;
 static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static std::unordered_map<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static MyHashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 //static emhash7::HashMap<UserId, Value, UserIdHash> uk[UK_HASH_MAP_SHARD];
 
