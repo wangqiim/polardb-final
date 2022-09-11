@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include "./network/Group.h"
-#include "./store/NvmStore.h"
+#include "./store/NvmStoreV3.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
 
@@ -39,7 +39,7 @@ static void Put(const char *tuple, size_t len){
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
     // note: write_count just used for log/debug
-    if (write_count % 1000000 == 0) {
+    if (write_count % 100000 == 0) {
       if (write_count % 4000000 == 0) {
         is_use_remote_pk = true;
         Util::print_resident_set_size();
@@ -91,10 +91,10 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
+        std::vector<uint64_t> posArray = getPosFromKey(where_column, column_key, is_local);
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
-            for (uint32_t pos: posArray) {
+            for (uint64_t pos: posArray) {
                 readColumFromPos(select_column, pos, res);
                 if (select_column == Id || select_column == Salary) {
                     result_bytes += 8;
