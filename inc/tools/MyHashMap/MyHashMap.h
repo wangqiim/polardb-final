@@ -15,7 +15,7 @@
  * ------------------------------------------------------------------------------
  * 
  */
-const uint64_t InplaceValueNum = 3; // 存储在原地的值
+const uint64_t InplaceValueNum = 2; // 存储在原地的值
 
 template <typename KeyT, typename ValueT, typename HashT = std::hash<KeyT>, typename EqT = std::equal_to<KeyT>>
 class MyHashMap {
