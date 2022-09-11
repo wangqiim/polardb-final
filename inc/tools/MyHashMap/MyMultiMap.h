@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdio>
 #include "../HashMap/EMHash/emhash7_int64_to_int32.h"
+#include "MyHashMap.h"
 
 // todo(wq): release memory
 // MyMultiMap目前仅仅提供insert和find功能
@@ -12,7 +13,8 @@ class MyMultiMap {
 public:
     struct ValueWrapper;
     typedef typename std::pair<KeyT, ValueT> value_type;
-    typedef typename emhash7::HashMap<KeyT, ValueWrapper> Internal_HashMap; // 更换hashmap实现，修改这里即可
+    // typedef typename emhash7::HashMap<KeyT, ValueWrapper> Internal_HashMap; // 更换hashmap实现，修改这里即可
+    typedef MyHashMap<KeyT, ValueWrapper> Internal_HashMap; // 更换hashmap实现，修改这里即可
     typedef typename Internal_HashMap::iterator Internal_iterator;
     typedef typename std::pair<KeyT, ValueWrapper> internal_value_type;
 

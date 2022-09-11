@@ -68,9 +68,9 @@ static MyUInt64HashMap pk;
 static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static MyHashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+// static MyHashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
-//static emhash7::HashMap<UserId, Value, UserIdHash> uk[UK_HASH_MAP_SHARD];
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
