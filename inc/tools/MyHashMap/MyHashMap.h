@@ -89,7 +89,7 @@ public:
     // while (bucket_cnt_ < num_elems) {
     //     bucket_cnt_ <<= 1;
     // }
-    bucket_cnt_ = num_elems + 1;
+    bucket_cnt_ = num_elems * 1.2;
     buckets_ = new bucket_type[bucket_cnt_];
   }
 
