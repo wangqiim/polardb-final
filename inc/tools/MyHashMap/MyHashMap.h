@@ -15,7 +15,7 @@
  * ------------------------------------------------------------------------------
  * 
  */
-const uint64_t InplaceValueNum = 3; // 存储在原地的值
+const uint64_t InplaceValueNum = 2; // 存储在原地的值的个数
 
 template <typename KeyT, typename ValueT, typename HashT = std::hash<KeyT>, typename EqT = std::equal_to<KeyT>>
 class MyHashMap {
@@ -85,11 +85,10 @@ public:
         std::cerr << "reserve fail!" << std::endl;
         exit(1);
     }
-    // bucket_cnt_ = 1;
-    // while (bucket_cnt_ < num_elems) {
-    //     bucket_cnt_ <<= 1;
-    // }
-    bucket_cnt_ = num_elems * 1.2;
+    bucket_cnt_ = 1;
+    while (bucket_cnt_ < num_elems) {
+        bucket_cnt_ <<= 1;
+    }
     buckets_ = new bucket_type[bucket_cnt_];
   }
 
