@@ -86,8 +86,11 @@ static size_t Get(int32_t select_column,
         spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
-    // 3. 尝试从本地读
+    // 3. 尝试从本地读. 如果是查salary，先发送广播，再查本地，再接受广播的返回值。这样在等待网络之前可以做别的事情
     size_t local_get_count = 0;
+    if (is_local == true && where_column == Salary) {
+      RemoteSalarySend(select_column, where_column, column_key, column_key_len, tid);
+    }
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
@@ -119,7 +122,9 @@ static size_t Get(int32_t select_column,
       if (where_column == 1) uk_remote_count++;
       if (where_column == 3) sk_remote_count++;
       Package result;
-      if (where_column == 1) {
+      if (where_column == Salary) {
+        result = RemoteSalaryRecv(select_column, where_column, column_key, column_key_len, tid);
+      } else if (where_column == 1) {
         char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
         memcpy(hash_colum_key, &uid.hashCode, 8);
