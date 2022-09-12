@@ -189,12 +189,12 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
     // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
     uint64_t sk_shard = sk_shardhashfn(salary);
-    pthread_rwlock_rdlock(&sk_rwlock[sk_shard]);
+    // pthread_rwlock_rdlock(&sk_rwlock[sk_shard]);
     auto its = sk[sk_shard].equal_range(salary);
     for (auto it = its.first; it != its.second; ++it) {
       result.push_back(it.Second());
     }
-    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
+    // pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
     // }
   }
 
