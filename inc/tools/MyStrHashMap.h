@@ -37,7 +37,6 @@ class MyStringHashMap {
         }
       }
     }
-    return;
   }
 
   void insert(uint64_t key, uint32_t value) {
