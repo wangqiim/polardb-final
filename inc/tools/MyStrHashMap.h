@@ -36,7 +36,7 @@ class MyStringHashMap {
 
   private:
     uint32_t *hash_table;
-    const uint32_t hashSize = 1<<30;
+    const uint32_t hashSize = 1<<28;
 };
 
 class MyString256HashMap {
