@@ -36,6 +36,13 @@ static inline void print_time(struct timeval t1, struct timeval t2) {
 
 static void recovery();
 
+static void Store_Sync() {
+  const size_t mmap_size = MEM_RECORD_SIZE * PER_THREAD_MAX_WRITE + COMMIT_FLAG_SIZE;
+  for (size_t i = 0; i < PMEM_FILE_COUNT; i++) {
+    msync(MBM[i].address - COMMIT_FLAG_SIZE, mmap_size, MS_ASYNC);
+  }
+}
+
 static void create_metal(std::string path, int i, bool is_pmem) {
     if (is_pmem) {
         path = path + "pmem" + std::to_string(i) + ".pool";

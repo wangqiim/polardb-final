@@ -14,6 +14,7 @@ static std::atomic<uint32_t> sk_local_count(0);
 static std::atomic<uint32_t> pk_remote_count(0);
 static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
+static std::atomic<uint32_t> total_write_count(0);
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
@@ -33,18 +34,18 @@ static void Put(const char *tuple, size_t len){
     }
     static thread_local uint64_t write_count = 0;
     write_count++;
+    total_write_count++;
     if (write_count > PER_THREAD_MAX_WRITE) {
       spdlog::error("write_count overflow!");
     }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
-    // note: write_count just used for log/debug
-    if (write_count % 100000 == 0) {
-      if (write_count % 4000000 == 0) {
-        is_use_remote_pk = true;
-        Util::print_resident_set_size();
-      }
-      spdlog::info("thread {} write {}", tid, write_count);
+
+    if (total_write_count == TOTAL_WRITE_NUM) {
+      Store_Sync();
+      is_use_remote_pk = true;
+      Util::print_resident_set_size();
+      spdlog::info("total write {} tuples", total_write_count);
     }
 }
 
