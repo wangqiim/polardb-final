@@ -10,12 +10,16 @@ struct alignas(64) MyStr256Head
   char data[256];
 };
 
+struct alignas(8) MyStrHead {
+    uint32_t value = 0;
+    uint32_t hashCode = 0;
+};
+
 
 class MyStringHashMap {
   public:
   MyStringHashMap() {
-    hash_table = new uint32_t[hashSize];
-    memset(hash_table, 0, sizeof(uint32_t) * hashSize);
+    hash_table = new MyStrHead[hashSize];
   }
 
   ~MyStringHashMap() {
@@ -23,11 +27,21 @@ class MyStringHashMap {
   }
 
   uint32_t get(uint64_t key) {
-    return hash_table[key & (hashSize - 1)];
+    int pos = key & (hashSize - 1);
+    if (hash_table[pos].hashCode == ((key >> 32) & 0xffffffff))
+      return hash_table[pos].value;
+    else
+      return hash_table[pos + 1].value;
   }
 
   void insert(uint64_t key, uint32_t value) {
-    hash_table[key & (hashSize - 1)] = value + 1;
+    int pos = key & (hashSize - 1);
+    if (hash_table[pos].value > 0) {
+      hash_table[pos + 1].value = value + 1;
+    } else {
+      hash_table[pos].hashCode = (key >> 32) & 0xffffffff;
+      hash_table[pos].value = value + 1;
+    }
   }
 
   void stat() {
@@ -35,8 +49,8 @@ class MyStringHashMap {
   }
 
   private:
-    uint32_t *hash_table;
-    const uint32_t hashSize = 1<<31;
+    MyStrHead *hash_table;
+    const uint32_t hashSize = 1<<30;
 };
 
 class MyString256HashMap {
