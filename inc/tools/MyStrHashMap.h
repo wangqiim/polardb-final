@@ -5,11 +5,6 @@
 #include <unistd.h> 
 #include <string.h>
 
-struct alignas(64) MyStrHead
-{
-  char data[128];
-};
-
 struct alignas(64) MyStr256Head
 {
   char data[256];
@@ -19,19 +14,20 @@ struct alignas(64) MyStr256Head
 class MyStringHashMap {
   public:
   MyStringHashMap() {
-    hash_table = new MyStrHead[hashSize];
+    hash_table = new uint32_t[hashSize];
+    memset(hash_table, 0, sizeof(uint32_t) * hashSize);
   }
 
   ~MyStringHashMap() {
     delete hash_table;
   }
 
-  char * get(uint32_t key) {
-    return hash_table[key & (hashSize - 1)].data;
+  uint32_t get(uint64_t key) {
+    return hash_table[key & (hashSize - 1)];
   }
 
-  void insert(uint32_t key, const char * value) {
-    memcpy(hash_table[key & (hashSize - 1)].data, value, 128);
+  void insert(uint64_t key, uint32_t value) {
+    hash_table[key & (hashSize - 1)] = value + 1;
   }
 
   void stat() {
@@ -39,8 +35,8 @@ class MyStringHashMap {
   }
 
   private:
-  MyStrHead *hash_table;
-  const uint32_t hashSize = 1<<26;
+    uint32_t *hash_table;
+    const uint32_t hashSize = 1<<30;
 };
 
 class MyString256HashMap {

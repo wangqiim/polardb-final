@@ -82,7 +82,7 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   create_mem_metal(MBM, std::string(disk_dir) + "mem.pool", 9 * NVSTORE_WRITE_NUM + COMMIT_FLAG_SIZE);
   create_pmem_metal(PBM, std::string(aep_dir) + "pmem.pool", PMEM_RECORD_SIZE * NVSTORE_WRITE_NUM);
   create_pmem_metal(PRBM ,std::string(aep_dir) + "rpmem.pool", 8 * 100000 + COMMIT_FLAG_SIZE);
-  MBM.address += COMMIT_FLAG_SIZE;
+  MBM.address += COMMIT_FLAG_SIZE + 1; //用一个字节表示d
   PRBM.address += COMMIT_FLAG_SIZE;
   recovery();
   spdlog::info("Store Init End");

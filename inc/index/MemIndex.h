@@ -67,10 +67,11 @@ pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyUInt64HashMap pk;
+static MyStringHashMap uk;
 // static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-static MyHashMapV2<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+//static MyHashMapV2<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 static MyMultiMapV2<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 // static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
@@ -79,10 +80,10 @@ static void initIndex() {
   spdlog::info("Init Index Begin");
   memset(thread_pos, 0, sizeof(thread_pos));
 
-  for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
-    uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
-    pthread_rwlock_init(&uk_rwlock[i], NULL);
-  }
+//  for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
+//    uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
+//    pthread_rwlock_init(&uk_rwlock[i], NULL);
+//  }
 
   for (size_t i = 0; i < SK_HASH_MAP_SHARD; i++) {
     sk[i].reserve(TOTAL_WRITE_NUM / SK_HASH_MAP_SHARD + 1);
@@ -101,11 +102,11 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     uint64_t uk_hash = blizardhashfn(tuple + 8);
     uint64_t salary = *(uint64_t *)(tuple + 264);
 
-    uint32_t uk_shard = shardhashfn(uk_hash);
+//    uint32_t uk_shard = shardhashfn(uk_hash);
     uint64_t sk_shard = sk_shardhashfn(salary);
 
     //获取所有锁
-    pthread_rwlock_wrlock(&uk_rwlock[uk_shard]);
+//    pthread_rwlock_wrlock(&uk_rwlock[uk_shard]);
     pthread_rwlock_wrlock(&sk_rwlock[sk_shard]);
 
     // 1. insert pk index
@@ -117,12 +118,13 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     // pthread_rwlock_unlock(&rwlock[0][pk_shard]);
     // 2. insert uk index
 //    uk[uk_shard].insert(std::pair<UserId, Value>(UserId(uk_hash), Value(pos, id, salary)));
-    uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
+//    uk[uk_shard].insert(std::pair<UserId, uint32_t>(UserId(uk_hash), pos));
+    uk.insert(uk_hash, pos);
   // 3. insert sk index
     sk[sk_shard].insert(std::pair<uint64_t, uint32_t>(salary, pos));
 
     //释放所有锁
-    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
+//    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
     pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
 
     if (id > local_max_pk) local_max_pk = id;
@@ -178,14 +180,15 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
-    
-    uint32_t uk_shard = shardhashfn(uid.hashCode);
-    pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
-    auto it = uk[uk_shard].find(uid);
-    if (it != uk[uk_shard].end()) {
-      result.push_back(it.Second());
-    } 
-    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
+    uint32_t pos = uk.get(uid.hashCode);
+    if (pos > 0) result.push_back(pos - 1);
+//    uint32_t uk_shard = shardhashfn(uid.hashCode);
+//    pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
+//    auto it = uk[uk_shard].find(uid);
+//    if (it != uk[uk_shard].end()) {
+//      result.push_back(it.Second());
+//    }
+//    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   }
   if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
