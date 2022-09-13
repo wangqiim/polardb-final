@@ -12,7 +12,7 @@ struct alignas(64) MyStr256Head
 
 struct alignas(8) MyStrHead {
     uint32_t value = 0;
-    uint32_t hashCode = 0;
+    std::vector<uint32_t> *ptr = nullptr;
 };
 
 
@@ -26,21 +26,31 @@ class MyStringHashMap {
     delete hash_table;
   }
 
-  uint32_t get(uint64_t key) {
-    int pos = key & (hashSize - 1);
-    if (hash_table[pos].hashCode == ((key >> 32) & 0xffffffff))
-      return hash_table[pos].value;
-    else
-      return hash_table[pos + 1].value;
+ void get(uint64_t key, std::vector<uint32_t> &ans) {
+    uint32_t pos = key & (hashSize - 1);
+    if (hash_table[pos].value == 0) return;
+    else {
+      ans.push_back(hash_table[pos].value - 1);
+      if (hash_table[pos].ptr != nullptr) {
+        for (uint32_t i = 0; i < hash_table[pos].ptr->size(); i++) {
+          ans.push_back(hash_table[pos].ptr->at(i));
+        }
+      }
+    }
+    return;
   }
 
   void insert(uint64_t key, uint32_t value) {
-    int pos = key & (hashSize - 1);
-    if (hash_table[pos].value > 0) {
-      hash_table[pos + 1].value = value + 1;
-    } else {
-      hash_table[pos].hashCode = (key >> 32) & 0xffffffff;
+    uint32_t pos = key & (hashSize - 1);
+    if (hash_table[pos].value == 0) {
       hash_table[pos].value = value + 1;
+    } else {
+      mtx.lock();
+      if (hash_table[pos].ptr == nullptr) {
+        hash_table[pos].ptr = new std::vector<uint32_t>();
+      }
+      hash_table[pos].ptr->push_back(value);
+      mtx.unlock();
     }
   }
 
@@ -51,6 +61,7 @@ class MyStringHashMap {
   private:
     MyStrHead *hash_table;
     const uint32_t hashSize = 1<<30;
+    std::mutex mtx;
 };
 
 class MyString256HashMap {
