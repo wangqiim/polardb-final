@@ -46,6 +46,12 @@ static void Put(const char *tuple, size_t len){
       is_use_remote_pk = true;
       Util::print_resident_set_size();
       spdlog::info("total write {} tuples", total_write_count);
+      spdlog::info("Server local get pk {}", pk_local_count);
+      spdlog::info("Server local get uk {}", uk_local_count);
+      spdlog::info("Server local get sk {}", sk_local_count);
+      spdlog::info("Server remote get pk {}", pk_remote_count);
+      spdlog::info("Server remote get uk {}", uk_remote_count);
+      spdlog::info("Server remote get sk {}", sk_remote_count);
     }
 }
 
