@@ -9,7 +9,9 @@
 #include "../tools/HashMap/EMHash/emhash8_str_to_int.h"
 #include "../tools/HashMap/DenseMap/unordered_dense.h"
 #include "../tools/MyHashMap/MyHashMap.h"
+#include "../tools/MyHashMap/MyHashMapV2.h"
 #include "../tools/MyHashMap/MyMultiMap.h"
+#include "../tools/MyHashMap/MyMultiMapV2.h"
 #include "../tools/MyStrHashMap.h"
 
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
@@ -65,11 +67,12 @@ pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyUInt64HashMap pk;
-static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
+// static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
-// static MyHashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
-static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static MyHashMapV2<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
+static MyMultiMapV2<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
+// static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 // static emhash7::HashMap<uint64_t, std::vector<uint32_t>> sk[HASH_MAP_COUNT];
 
 static void initIndex() {
@@ -180,7 +183,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
     auto it = uk[uk_shard].find(uid);
     if (it != uk[uk_shard].end()) {
-      result.push_back(it->second);
+      result.push_back(it.Second());
     } 
     pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   }
