@@ -176,47 +176,6 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
-static void RemoteSalarySend(int32_t select_column,
-          int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
-  for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (!client_is_running[i].load()) continue;
-    int ret = client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
-    if (ret != 0) {
-      client_is_running[i].store(false);
-    }
-  }
-}
-
-static Package RemoteSalaryRecv(int32_t select_column,
-          int32_t where_column, const void *column_key, size_t column_key_len, int tid) {
-  Package result;
-  result.size = 0;
-  for (int i = 0; i < PeerHostInfoNum; i++) {
-    if (!client_is_running[i].load()) continue;
-    Package package = client_broadcast_recv(select_column, tid, i);
-    if (package.size == -1) {
-      client_is_running[i].store(false);
-      continue;
-    }
-
-    int local_data_len, remote_data_len;
-    if (select_column == 0 || select_column == 3) {
-      local_data_len = result.size * 8;
-      remote_data_len = package.size * 8;
-    }
-    else {
-      local_data_len = result.size * 128;
-      remote_data_len = package.size * 128;
-    }
-    if (local_data_len + remote_data_len > 2000 * 8) {
-      spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed 2000 * 8", local_data_len + remote_data_len);
-    }
-    memcpy(result.data + local_data_len, package.data, remote_data_len);
-    result.size += package.size;
-  }
-  return result;
-}
-
 static void deInitGroup() {
   group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
