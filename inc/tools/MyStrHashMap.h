@@ -14,20 +14,22 @@ struct alignas(64) MyStr256Head
   char data[256];
 };
 
-struct alignas(8) MyStrHead {
+struct alignas(4) MyStrHead {
     uint32_t value = 0;
 };
 
 class MyStringHashMap {
   public:
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
-  MyStringHashMap() {
+  MyStringHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
+    hashSize_ = hashSize;
     pmem_record_num_ = 0;
     uint64_t mmap_size = TOTAL_WRITE_NUM * sizeof(kv_pair);
     int is_pmem;
     size_t mapped_len;
-    if ( (pmem_addr_ = (char *)pmem_map_file("/mnt/aep/skindex", mmap_size, PMEM_FILE_CREATE,
+    file_name = "/mnt/aep/" + file_name;
+    if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
                                                   0666, &mapped_len, &is_pmem)) == NULL ) {
       spdlog::error("[MyStringHashMap] pmem_map_file");
     }
@@ -39,7 +41,7 @@ class MyStringHashMap {
   }
 
  void get(uint64_t key, std::vector<uint32_t> &ans) {
-    uint32_t pos = key & (hashSize - 1);
+    uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) return;
     else {
       ans.push_back(hash_table[pos].value - 1);
@@ -56,7 +58,7 @@ class MyStringHashMap {
   }
 
   void insert(uint64_t key, uint32_t value) {
-    uint32_t pos = key & (hashSize - 1);
+    uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) {
       hash_table[pos].value = value + 1;
     } else {
@@ -73,7 +75,7 @@ class MyStringHashMap {
 
   private:
     MyStrHead *hash_table;
-    const uint32_t hashSize = 1<<30;
+    uint32_t hashSize_ = 1<<30;
     
     std::mutex mtx;
     char *pmem_addr_;
