@@ -4,6 +4,10 @@
 #include <xmmintrin.h>
 #include <unistd.h> 
 #include <string.h>
+#include <vector>
+#include <mutex>
+#include <libpmem.h>
+#include "../Config.h"
 
 struct alignas(64) MyStr256Head
 {
@@ -14,13 +18,13 @@ struct alignas(8) MyStrHead {
     uint32_t value = 0;
 };
 
-
 class MyStringHashMap {
   public:
+  typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
   MyStringHashMap() {
     hash_table = new MyStrHead[hashSize];
     pmem_record_num_ = 0;
-    uint64_t mmap_size = TOTAL_WRITE_NUM * 4;
+    uint64_t mmap_size = TOTAL_WRITE_NUM * sizeof(kv_pair);
     int is_pmem;
     size_t mapped_len;
     if ( (pmem_addr_ = (char *)pmem_map_file("/mnt/aep/skindex", mmap_size, PMEM_FILE_CREATE,
@@ -42,9 +46,9 @@ class MyStringHashMap {
       if (pmem_record_num_ != 0) {
         std::lock_guard<std::mutex> guard(mtx);
         for (uint64_t i = 0; i < pmem_record_num_; i++) {
-          uint32_t temp = *(uint32_t *)(pmem_addr_ + i * 4);
-          if (key == temp) {
-            ans.push_back(temp);
+          kv_pair temp = *(kv_pair *)(pmem_addr_ + i * sizeof(kv_pair));
+          if (key == temp.first) {
+            ans.push_back(temp.second);
           }
         }
       }
@@ -57,7 +61,8 @@ class MyStringHashMap {
       hash_table[pos].value = value + 1;
     } else {
       std::lock_guard<std::mutex> guard(mtx);
-      pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * 4, &value, 4);
+      kv_pair temp = {key ,value};
+      pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * sizeof(kv_pair), &temp, sizeof(kv_pair));
       pmem_record_num_++;
     }
   }
