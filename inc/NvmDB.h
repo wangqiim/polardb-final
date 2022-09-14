@@ -5,6 +5,9 @@
 #include "./store/NvmStore.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 // 等价于客户端read的调用次数
 static std::atomic<uint32_t> pk_local_count(0);
@@ -90,6 +93,8 @@ static size_t Get(int32_t select_column,
         spdlog::info("first call remote_read_count once");
       }
       if (remote_read_count % 500000 == 0) {
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(60000ms);
         spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
