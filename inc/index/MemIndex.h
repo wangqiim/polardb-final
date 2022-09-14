@@ -17,7 +17,8 @@
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
 
 static uint64_t blizardhashfn(const char *key) {
-    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
+//    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
+  return XXH3_64bits(key, 128);
 }
 
 static uint32_t shardhashfn(uint64_t hash) {
