@@ -30,4 +30,6 @@ bool is_use_remote_pk = false;
 
 enum Column{Id=0,Userid,Name,Salary};
 
+// NvmStore.h
+static char *GetUserIdByPos(uint32_t pos);
 #endif

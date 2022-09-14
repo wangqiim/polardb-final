@@ -82,6 +82,74 @@ class MyStringHashMap {
     uint64_t pmem_record_num_;
 };
 
+class MyUserIdsHashMap {
+  public:
+  MyUserIdsHashMap(uint32_t hashSize, std::string file_name) {
+    hash_table = new MyStrHead[hashSize];
+    hashSize_ = hashSize;
+    pmem_record_num_ = 0;
+    uint64_t mmap_size = TOTAL_WRITE_NUM * 4;
+    int is_pmem;
+    size_t mapped_len;
+    file_name = "/mnt/aep/" + file_name;
+    if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
+                                                  0666, &mapped_len, &is_pmem)) == NULL ) {
+      spdlog::error("[MyStringHashMap] pmem_map_file");
+    }
+    pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
+  }
+
+  ~MyUserIdsHashMap() {
+    delete hash_table;
+  }
+
+  // 传入user_id用来对比
+  void get(uint64_t key, std::vector<uint32_t> &ans, const char *used_id) {
+    uint32_t pos = key & (hashSize_ - 1);
+    if (hash_table[pos].value == 0) return;
+    else {
+      uint32_t pos = hash_table[pos].value - 1;
+      if (memcmp(GetUserIdByPos(pos), used_id, 128) == 0) {
+        ans.push_back(pos);
+        return; //只会有一条符合要求
+      }
+      if (pmem_record_num_ != 0) {
+        std::lock_guard<std::mutex> guard(mtx);
+        for (uint64_t i = 0; i < pmem_record_num_; i++) {
+          uint32_t pos = *(uint32_t *)(pmem_addr_ + i * 4);
+          if (memcmp(GetUserIdByPos(pos), used_id, 128) == 0) {
+            ans.push_back(pos);
+            return; //只会有一条符合要求
+          }
+        }
+      }
+    }
+  }
+
+  void insert(uint64_t key, uint32_t value) {
+    uint32_t pos = key & (hashSize_ - 1);
+    if (hash_table[pos].value == 0) {
+      hash_table[pos].value = value + 1;
+    } else {
+      std::lock_guard<std::mutex> guard(mtx);
+      pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * 4, &value, 4);
+      pmem_record_num_++;
+    }
+  }
+
+  void stat() {
+    // std::cout << "recovery boom " << hash_boom << std::endl;
+  }
+
+  private:
+    MyStrHead *hash_table;
+    uint32_t hashSize_ = 1<<30;
+    
+    std::mutex mtx;
+    char *pmem_addr_;
+    uint64_t pmem_record_num_;
+};
+
 class MyString256HashMap {
   public:
   MyString256HashMap() {

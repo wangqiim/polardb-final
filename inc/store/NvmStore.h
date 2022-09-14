@@ -132,6 +132,12 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   }
 }
 
+static char *GetUserIdByPos(uint32_t pos) {
+  uint8_t tid = pos / PER_THREAD_MAX_WRITE;
+  uint64_t offset = (pos % PER_THREAD_MAX_WRITE);
+  return PBM[tid].address + offset * PMEM_RECORD_SIZE;
+}
+
 // build index
 static void recovery() {
   uint64_t recovery_cnt = 0;
