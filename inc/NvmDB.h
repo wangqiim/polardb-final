@@ -42,7 +42,7 @@ static void Put(const char *tuple, size_t len){
     insert(tuple, len, tid);
 
     if (total_write_count == TOTAL_WRITE_NUM) {
-      Store_Sync();
+//      Store_Sync();
       is_use_remote_pk = true;
       Util::print_resident_set_size();
       spdlog::info("total write {} tuples", total_write_count);
