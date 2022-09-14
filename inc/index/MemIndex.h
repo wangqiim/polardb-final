@@ -62,7 +62,7 @@ struct UserIdHash {
 //};
 
 pthread_rwlock_t uk_rwlock[UK_HASH_MAP_SHARD];
-pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
+//pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
 
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
