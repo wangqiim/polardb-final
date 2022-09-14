@@ -18,7 +18,8 @@ static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
 
 static uint64_t blizardhashfn(const char *key) {
 //    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
-  return XXH3_64bits(key, 128);
+  // return XXH3_64bits(key, 128);
+  return *(uint64_t *)(key);
 }
 
 static uint32_t shardhashfn(uint64_t hash) {
@@ -68,7 +69,7 @@ struct UserIdHash {
 uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyUInt64HashMap pk;
-static MyStringHashMap uk(1<<31, "uk");
+static MyUserIdsHashMap uk(1<<30, "uk");
 static MyStringHashMap sk(1<<30, "sk");
 // static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
@@ -183,7 +184,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
       memcpy(&uid.hashCode, (char *)column_key, 8);
     }
-    uk.get(uid.hashCode, result);
+    uk.get(uid.hashCode, result, (const char *)column_key); // todo(wq): 网络请求只传递了hashcode,未传递实际数据
 //    uint32_t uk_shard = shardhashfn(uid.hashCode);
 //    pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
 //    auto it = uk[uk_shard].find(uid);
