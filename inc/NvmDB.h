@@ -19,6 +19,15 @@ static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
 static std::atomic<uint32_t> total_write_count(0);
 
+static void Log_UserId(const unsigned char *userid, int tid) {
+  char user_id_hex[257] = {0};
+  for (int i = 0; i < 128; i++) {
+    sprintf(user_id_hex + 2 * i, "%02x", *(userid+i));
+  }
+  user_id_hex[256] = 0;
+  spdlog::info("write tid = {}, Uid = {}\n", tid, user_id_hex);
+}
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
@@ -42,6 +51,9 @@ static void Put(const char *tuple, size_t len){
       spdlog::error("write_count overflow!");
     }
     writeTuple(tuple, len, tid);
+    if (write_count < 80) {
+      Log_UserId((unsigned char *)(tuple + 8), tid);
+    }
     insert(tuple, len, tid);
 
     if (total_write_count == TOTAL_WRITE_NUM) {
@@ -82,20 +94,20 @@ static size_t Get(int32_t select_column,
       if (where_column == 3) sk_local_count++;
       local_read_count++;
       if (local_read_count == 1) {
-        spdlog::info("first call local_read_count once");
+        // spdlog::info("first call local_read_count once");
       }
       if (local_read_count % 500000 == 0) {
-        spdlog::info("local_read_count {}", local_read_count);
+        // spdlog::info("local_read_count {}", local_read_count);
       }
     } else {
       remote_read_count++;
       if (remote_read_count == 1) {
-        spdlog::info("first call remote_read_count once");
+        // spdlog::info("first call remote_read_count once");
       }
       if (remote_read_count % 500000 == 0) {
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(60000ms);
-        spdlog::info("remote_read_count {}", remote_read_count);
+        std::this_thread::sleep_for(50000ms);
+        // spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
     // 3. 尝试从本地读
