@@ -169,5 +169,6 @@ static void deinitNvmDB() {
   spdlog::info("Server remote get pk {}", pk_remote_count);
   spdlog::info("Server remote get uk {}", uk_remote_count);
   spdlog::info("Server remote get sk {}", sk_remote_count);
+  store_stat();
   spdlog::info("NvmDB deinit done");
 }

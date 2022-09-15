@@ -159,3 +159,9 @@ static void recovery() {
   spdlog::info("RECOVERY END");
 }
 
+static void store_stat() {
+  spdlog::info("-------------store stat-----------------------");
+  for (uint32_t i = 0; i < PMEM_FILE_COUNT; i++) {
+    spdlog::info("write tid={}, write count = {}", i, PBM[i].offset/PMEM_RECORD_SIZE);
+  }
+}
