@@ -105,10 +105,10 @@ class MyUserIdsHashMap {
 
   // 传入user_id用来对比
   void get(uint64_t key, std::vector<uint32_t> &ans, const char *used_id) {
-    uint32_t pos = key & (hashSize_ - 1);
-    if (hash_table[pos].value == 0) return;
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    if (hash_table[bucket_idx].value == 0) return;
     else {
-      uint32_t pos = hash_table[pos].value - 1;
+      uint32_t pos = hash_table[bucket_idx].value - 1;
       // pmem_record_num_ == 0时候，不比user_id了。假设远程读无时，远端节点不会数据碰撞。
       if (pmem_record_num_ == 0 || memcmp(GetUserIdByPos(pos), used_id, 128) == 0) {
         ans.push_back(pos);
