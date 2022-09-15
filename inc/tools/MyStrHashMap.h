@@ -117,7 +117,7 @@ class MyUserIdsHashMap {
       if (pmem_record_num_ != 0) {
         std::lock_guard<std::mutex> guard(mtx);
         for (uint64_t i = 0; i < pmem_record_num_; i++) {
-          uint32_t pos = *(uint32_t *)(pmem_addr_ + i * 4);
+          pos = *(uint32_t *)(pmem_addr_ + i * 4);
           if (memcmp(GetUserIdByPos(pos), used_id, 128) == 0) {
             ans.push_back(pos);
             return; //只会有一条符合要求
