@@ -52,6 +52,11 @@ static void Put(const char *tuple, size_t len){
       spdlog::info("Server remote get pk {}", pk_remote_count);
       spdlog::info("Server remote get uk {}", uk_remote_count);
       spdlog::info("Server remote get sk {}", sk_remote_count);
+
+      for (int i = 0; i < 50; i++) {
+        if (local_max_pks[i] > local_max_pk) local_max_pk = local_max_pks[i];
+        if (local_min_pks[i] < local_min_pk) local_min_pk = local_min_pks[i];
+      }
     }
 }
 
