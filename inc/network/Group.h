@@ -5,6 +5,7 @@
 #include "Config.h"
 #include "spdlog/spdlog.h"
 #include "./MySocket/MyClient.h"
+#include "./MySocket/MyServer.h"
 
 std::string global_peer_host_info[PeerHostInfoNum];
 
@@ -108,7 +109,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   
   for (size_t i = 0; i < peer_host_info_num; i++) {
     while (true) {
-      if (client_sync(4, i, SYNC_TID) > 0) {
+      if (client_sync(uint8_t(RequestType::SYNC_INIT), i, SYNC_TID) > 0) {
         spdlog::info("Server {} init Success", i);
         break;
       } else {
@@ -176,8 +177,8 @@ static Package clientRemoteGet(int32_t select_column,
       local_data_len = result.size * 128;
       remote_data_len = package.size * 128;
     }
-    if (local_data_len + remote_data_len > 2000 * 8) {
-      spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed 2000 * 8", local_data_len + remote_data_len);
+    if (local_data_len + remote_data_len > PACKAGE_DATA_SIZE) {
+      spdlog::error("[clientRemoteGet] local_data_len + remote_data_len = {}, succeed {}", local_data_len + remote_data_len, PACKAGE_DATA_SIZE);
     }
     memcpy(result.data + local_data_len, package.data, remote_data_len);
     result.size += package.size;
@@ -189,7 +190,7 @@ static void deInitGroup() {
   group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      int ret = client_sync(5, i, SYNC_TID);
+      int ret = client_sync(uint8_t(RequestType::SYNC_DEINIT), i, SYNC_TID);
       if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);
         break;

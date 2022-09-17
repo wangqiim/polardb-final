@@ -141,7 +141,7 @@ static size_t Get(int32_t select_column,
                     result_bytes += 128;
                     res = (char *) res + 128;
                 }
-                if (result_bytes >= 2000 * 8) {
+                if (result_bytes >= PACKAGE_DATA_SIZE) {
                     spdlog::error("result overflow!!!!!!");
                     exit(1);
                 }

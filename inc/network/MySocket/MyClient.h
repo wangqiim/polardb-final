@@ -1,6 +1,7 @@
 #pragma once
-#include <exception>
-#include "./MyServer.h"
+#include "spdlog/spdlog.h"
+
+#include "MySocket.h"
 
 // 初始化时，初始化前50 tid对应的客户端，以及最后一个客户端（用来同步init/deinit）,剩余的当读线程来的时候，初始化
 static int clients[3][SYNC_TID + 1]; // clients[i][SYNC_TID] 仅仅用来同步
@@ -83,7 +84,7 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
     return page;
   }
   ssize_t value_len = 0;
-  if (select_column == 0 || select_column == 3) {
+  if (select_column == Id || select_column == Salary) {
     value_len = 8 * page.size;
   } else {
     value_len = 128 * page.size;

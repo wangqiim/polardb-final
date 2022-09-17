@@ -1,21 +1,7 @@
 #pragma once
-#include <sys/types.h> /* See NOTES */
-#include <sys/socket.h>
-#include <netinet/tcp.h> 
-#include <arpa/inet.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-// #include "Config.h"
 #include "spdlog/spdlog.h"
 
-#include <pthread.h>
-#include <stdio.h>
-#include <errno.h>
-#include <ctype.h>
-#include <exception> 
-#include <sstream>
-#include <iomanip>
+#include "MySocket.h"
 
 std::string to_hex(unsigned char* data, int len) {
     std::stringstream ss;
@@ -25,16 +11,6 @@ std::string to_hex(unsigned char* data, int len) {
     }
     return ss.str();
 }
-
-struct s_info {
-    sockaddr_in s_addr;
-    int fd;
-} ts[256];
-
-struct Package {
-  int32_t size = 0;
-  char data[2000 * 8];
-};
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
 const int BUFSIZE = 130;
@@ -60,11 +36,11 @@ void *connect_client(void *arg) {
             close(ts->fd);
             pthread_exit(NULL);
         }
-        uint8_t selectColum = *(uint8_t *)buf;
+        RequestType request_type = *(RequestType *)buf;
         //判断同步启动 || 关闭
-        if (selectColum == 4 || selectColum == 5) {
+        if (request_type == RequestType::SYNC_INIT || request_type == RequestType::SYNC_DEINIT) {
             bool result;
-            if (selectColum == 4) {
+            if (request_type == RequestType::SYNC_INIT) {
                 result = serverSyncInit();
             } else {
                 result = serverSyncDeinit();
@@ -77,6 +53,7 @@ void *connect_client(void *arg) {
             }
             continue;            
         }
+        uint8_t selectColum = (uint8_t)request_type;
         uint8_t whereColum = *(uint8_t *)(buf + 1);
         char *column_key = buf + 2;
 
@@ -88,7 +65,7 @@ void *connect_client(void *arg) {
         }
         Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
 
-        if (selectColum == 0 || selectColum == 3) {
+        if (selectColum == Id || selectColum == Salary) {
             column_key_len = 8;
         } else {
             column_key_len = 128;
