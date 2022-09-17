@@ -77,7 +77,7 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
   // todo(wq): 直接read整个页应该也行.(不会有其他线程同时读写该socket)
   ssize_t len = read(clients[server][tid], &page, 4);
   if (len != 4) {
-    spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, 4);
+    spdlog::warn("[client_broadcast_recv] read fail, len = {}, expected: {}", len, 4);
     page.size = -1;
     clients[server][tid] = -1;
     return page;
@@ -91,9 +91,9 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
   len = read(clients[server][tid], page.data, value_len);
   if (len != value_len) {
     if (len >= 0) {
-      spdlog::warn("[client_send] read fail, len = {}, expected: {}", len, value_len);
+      spdlog::warn("[client_broadcast_recv] read fail, len = {}, expected: {}, errno = {}", len, value_len, errno);
     } else {
-      spdlog::error("[client_send] read fail, len = {}, expected: {}, errno = {}", len, value_len, errno);
+      spdlog::error("[client_broadcast_recv] read fail, len = {}, expected: {}, errno = {}", len, value_len, errno);
     }
     page.size = -1;
     clients[server][tid] = -1;

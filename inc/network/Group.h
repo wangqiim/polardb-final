@@ -11,6 +11,12 @@ std::string global_peer_host_info[PeerHostInfoNum];
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
 
+#ifdef debug_db
+  std::atomic<uint64_t> remote_pk_success_cnt[3] = {0, 0, 0};
+  std::atomic<uint64_t> remote_uk_success_cnt[3] = {0, 0, 0};
+  std::atomic<uint64_t> remote_sk_success_cnt[3] = {0, 0, 0};
+#endif
+
 static bool serverSyncInit() {
   return group_is_runing.load();
 }
@@ -144,13 +150,23 @@ static Package clientRemoteGet(int32_t select_column,
     }
 
     //如果查PK，并且查到了
-    if (where_column == 0 && package.size > 0) {
+    if (where_column == Id && package.size > 0) {
+#ifdef debug_db
+      remote_pk_success_cnt[i]++;
+#endif
       if (id_to_server < 4) {
         //标记要去哪找
         remote_pk_in_client[id_to_server] = i + 1;
       }
     }
-
+#ifdef debug_db
+    if (where_column == Userid && package.size > 0) {
+      remote_uk_success_cnt[i]++;
+    }
+    if (where_column == Salary && package.size > 0) {
+      remote_sk_success_cnt[i]++;
+    }
+#endif
     int local_data_len, remote_data_len;
     if (select_column == 0 || select_column == 3) {
       local_data_len = result.size * 8;

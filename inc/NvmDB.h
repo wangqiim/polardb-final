@@ -5,8 +5,10 @@
 #include "./store/NvmStore.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
+#include <chrono>
+#include <thread>
 
-#ifdef debug
+#ifdef debug_db
 // 等价于客户端read的调用次数
 static std::atomic<uint32_t> pk_local_count(0);
 static std::atomic<uint32_t> uk_local_count(0);
@@ -15,6 +17,10 @@ static std::atomic<uint32_t> sk_local_count(0);
 static std::atomic<uint32_t> pk_remote_count(0);
 static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
+static std::atomic<uint32_t> sk_local_hit_remote_hit(0);
+static std::atomic<uint32_t> sk_local_hit_remote_miss(0);
+static std::atomic<uint32_t> sk_local_miss_remote_hit(0);
+static std::atomic<uint32_t> sk_local_miss_remote_miss(0);
 #endif
 
 std::mutex finished_mtx;
@@ -53,7 +59,7 @@ static void Put(const char *tuple, size_t len){
         Store_Sync();
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
-#ifdef debug
+#ifdef debug_db
         spdlog::info("Server local get pk {}", pk_local_count);
         spdlog::info("Server local get uk {}", uk_local_count);
         spdlog::info("Server local get sk {}", sk_local_count);
@@ -69,6 +75,8 @@ static void Put(const char *tuple, size_t len){
         local_max_pk = tmp_max;
         local_min_pk = tmp_min;
         is_use_remote_pk = true;
+        // using namespace std::chrono_literals;
+        // std::this_thread::sleep_for(300s);
 
         finished_cv.notify_all();
       }
@@ -91,7 +99,7 @@ static size_t Get(int32_t select_column,
       }
     }
     // 2. 输出一些log来debug
-#ifdef debug
+#ifdef debug_db
     static thread_local int local_read_count = 0;
     static thread_local int remote_read_count = 0;
     if (is_local) {
@@ -144,7 +152,7 @@ static size_t Get(int32_t select_column,
 //    }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((local_get_count == 0 || where_column == Salary) && is_local) {
-#ifdef debug
+#ifdef debug_db
       if (where_column == 0) pk_remote_count++;
       if (where_column == 1) uk_remote_count++;
       if (where_column == 3) sk_remote_count++;
@@ -162,6 +170,23 @@ static size_t Get(int32_t select_column,
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
       if(select_column == Userid || select_column == Name) dataSize = result.size * 128;      
       memcpy(res, result.data, dataSize);
+#ifdef debug_db
+      if (where_column == Salary) {
+        if (local_get_count > 0) {
+          if (result.size > 0) {
+            sk_local_hit_remote_hit++;
+          } else {
+            sk_local_hit_remote_miss++;
+          }
+        } else {
+          if (result.size > 0) {
+            sk_local_miss_remote_hit++;
+          } else {
+            sk_local_miss_remote_miss++;
+          }
+        }
+      }
+#endif
       return result.size + local_get_count;
     }
     return local_get_count;
@@ -187,13 +212,30 @@ static Package remoteGet(int32_t select_column,
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
-#ifdef debug
+#ifdef debug_db
   spdlog::info("Server local get pk {}", pk_local_count);
   spdlog::info("Server local get uk {}", uk_local_count);
   spdlog::info("Server local get sk {}", sk_local_count);
   spdlog::info("Server remote get pk {}", pk_remote_count);
   spdlog::info("Server remote get uk {}", uk_remote_count);
   spdlog::info("Server remote get sk {}", sk_remote_count);
+  uint64_t total_pk_remote_success = 0, total_uk_remote_success = 0, total_sk_remote_success = 0;
+  for (int i = 0; i < 3; i++) {
+    spdlog::info("clinet {} remote_pk_success_cnt {}", i, remote_pk_success_cnt[i]);
+    spdlog::info("clinet {} remote_uk_success_cnt {}", i, remote_uk_success_cnt[i]);
+    spdlog::info("clinet {} remote_sk_success_cnt {}", i, remote_sk_success_cnt[i]);
+    total_pk_remote_success += remote_pk_success_cnt[i];
+    total_uk_remote_success += remote_uk_success_cnt[i];
+    total_sk_remote_success += remote_sk_success_cnt[i];
+  }
+  spdlog::info("total_pk_remote_success {}", total_pk_remote_success);
+  spdlog::info("total_uk_remote_success {}", total_uk_remote_success);
+  spdlog::info("total_sk_remote_success {}", total_sk_remote_success);
+  spdlog::info("------------sk stats--------------");
+  spdlog::info("sk_local_hit_remote_hit {}", sk_local_hit_remote_hit);
+  spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
+  spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
+  spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
 #endif
   store_stat();
   spdlog::info("NvmDB deinit done");
