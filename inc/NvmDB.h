@@ -51,7 +51,6 @@ static void Put(const char *tuple, size_t len){
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
         Store_Sync();
-        is_use_remote_pk = true;
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
 #ifdef debug
@@ -66,6 +65,7 @@ static void Put(const char *tuple, size_t len){
           if (local_max_pks[i] > local_max_pk) local_max_pk = local_max_pks[i];
           if (local_min_pks[i] < local_min_pk) local_min_pk = local_min_pks[i];
         }
+        is_use_remote_pk = true;
 
         finished_cv.notify_all();
       }

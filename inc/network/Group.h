@@ -10,7 +10,6 @@ std::string global_peer_host_info[PeerHostInfoNum];
 
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
-std::atomic<bool> client_is_running[PeerHostInfoNum];
 
 static bool serverSyncInit() {
   return group_is_runing.load();
@@ -97,7 +96,6 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         break;
       }
     }
-    client_is_running[i].store(true);
   }
 
   group_is_runing.store(true);
@@ -110,7 +108,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       } else {
         spdlog::info("Server {} init time out", i);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
   std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -132,21 +130,16 @@ static Package clientRemoteGet(int32_t select_column,
       }
       pk_has_find_server = true;
     }
-    if (!client_is_running[i].load()) continue;
-    int ret = client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
-    if (ret != 0) {
-      client_is_running[i].store(false);
-    }
+    // 不需要检验ret,如果发送出错，读的时候也会出错，不会永远阻塞住。
+    client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
   }
   // 2. broadcast phrase2: recv
   Package result;
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
-    if (!client_is_running[i].load()) continue;
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
-      client_is_running[i].store(false);
       continue;
     }
 
@@ -180,7 +173,6 @@ static void deInitGroup() {
   group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      if (!client_is_running[i].load()) break;
       int ret = client_sync(5, i, SYNC_TID);
       if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);

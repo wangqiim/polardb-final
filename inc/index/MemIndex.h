@@ -23,15 +23,15 @@ static uint64_t blizardhashfn(const char *key) {
   return *(uint64_t *)(key);
 }
 
-static uint32_t shardhashfn(uint64_t hash) {
-  uint32_t key = (hash >> 32) & 0xffffffff;
-  return key & (UK_HASH_MAP_SHARD - 1);
-}
+// static uint32_t shardhashfn(uint64_t hash) {
+//   uint32_t key = (hash >> 32) & 0xffffffff;
+//   return key & (UK_HASH_MAP_SHARD - 1);
+// }
 
-static uint32_t sk_shardhashfn(uint64_t hash) {
-  uint32_t key = (hash >> 32) & 0xffffffff;
-  return key & (SK_HASH_MAP_SHARD - 1);
-}
+// static uint32_t sk_shardhashfn(uint64_t hash) {
+//   uint32_t key = (hash >> 32) & 0xffffffff;
+//   return key & (SK_HASH_MAP_SHARD - 1);
+// }
 
 class UserId {
 public:
@@ -131,8 +131,8 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
     //释放所有锁
 //    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
 //    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
-  if (id > local_max_pk) local_max_pk= id;
-  if (id < local_min_pk) local_min_pk = id;
+  // if (id > local_max_pk) local_max_pk= id;
+  // if (id < local_min_pk) local_min_pk = id;
   if (id > local_max_pks[tid]) local_max_pks[tid] = id;
   if (id < local_min_pks[tid]) local_min_pks[tid] = id;
   thread_pos[tid]++;
@@ -178,8 +178,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
     //   }
     //   pthread_rwlock_unlock(&rwlock[0][pk_shard]);
     // }
-  }
-  if (where_column == Userid) {
+  } else if (where_column == Userid) {
     UserId uid;
     if(is_local) {
       uid = UserId((char *)column_key);
@@ -194,8 +193,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 //      result.push_back(it->second);
 //    }
 //    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
-  }
-  if (where_column == Salary) {
+  } else if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
     sk.get(salary, result);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
