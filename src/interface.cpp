@@ -1,6 +1,7 @@
 #include "../inc/interface.h"
 #include <iostream>
 #include "spdlog/spdlog.h"
+#include <signal.h>
 
 #include "../inc/NvmDB.h"
 
@@ -18,6 +19,7 @@ size_t engine_read(__attribute__((unused)) void *ctx, int32_t select_column,
 void* engine_init(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                   const char* aep_dir, const char* disk_dir) {
     spdlog::set_level(spdlog::level::info);
+    signal(SIGPIPE, SIG_IGN);  // 忽略 SIGPIPE 信号
     call_init_num++;
     spdlog::info("version [without remoteGet backoff], call engine_init times = {}", call_init_num);
     initNvmDB(host_info, peer_host_info, peer_host_info_num, aep_dir, disk_dir);
