@@ -45,8 +45,8 @@ static void mustAddConnect(int tid) {
     int flag = s.find(":");
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
-    if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) { // 可能节点被kill掉了，不用重试
-      spdlog::warn("[mustAddConnect] tid: {} add connect fail, errno = {}", tid, errno);
+    if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i) < 0) { // 可能节点被kill掉了，不用重试
+      spdlog::warn("[mustAddConnect] tid: {} add read client connect fail, errno = {}", tid, errno);
     } else {
       spdlog::debug("[mustAddConnect] tid: {} add connect");
     }
@@ -78,6 +78,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     sorted_peer_host_info.push_back(all_host_info_str[idx]);
   }
 
+  // 初始化连接 read clients, write clients, sync clients
   for (size_t i = 0; i < peer_host_info_num; i++) {
     global_peer_host_info[i] = sorted_peer_host_info[i];
     std::string s = sorted_peer_host_info[i];
@@ -87,17 +88,24 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     port = s.substr(flag + 1, s.length());
 
     spdlog::info("Connect Server {}, ip: {}, port: {}", i, ip, port);
-    for (int tid = 0; tid < 50; tid++) { // 50 tid
-      while (true) {
-        if (create_connect(ip.c_str(), stoi(port), tid, i) < 0) {
+    for (int tid = 0; tid < 50; tid++) {
+      while (true) { // 50 tid, 初始化read client
+        if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i) < 0) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        } else {
+          break;
+        }
+      }
+      while (true) { // 50 tid, 初始化write client
+        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
         } else {
           break;
         }
       }
     }
-    while (true) { // sync tid
-      if (create_connect(ip.c_str(), stoi(port), SYNC_TID, i) < 0) {
+    while (true) { // 初始化sync client
+      if (init_client_socket(sync_clients, ip.c_str(), stoi(port), SYNC_Init_Deinit_Tid, i) < 0) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       } else {
         break;
@@ -109,7 +117,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   
   for (size_t i = 0; i < peer_host_info_num; i++) {
     while (true) {
-      if (client_sync(uint8_t(RequestType::SYNC_INIT), i, SYNC_TID) > 0) {
+      if (client_sync(uint8_t(RequestType::SYNC_INIT), i, SYNC_Init_Deinit_Tid) > 0) {
         spdlog::info("Server {} init Success", i);
         break;
       } else {
@@ -186,11 +194,15 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
+void broadcast_salary(uint64_t salary) {
+  // todo(wq): implement me!
+}
+
 static void deInitGroup() {
   group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
     while (true) {
-      int ret = client_sync(uint8_t(RequestType::SYNC_DEINIT), i, SYNC_TID);
+      int ret = client_sync(uint8_t(RequestType::SYNC_DEINIT), i, SYNC_Init_Deinit_Tid);
       if (ret > 0) {
         spdlog::info("Server {} ready to deinit", i);
         break;

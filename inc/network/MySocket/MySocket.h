@@ -24,10 +24,11 @@ enum class RequestType : uint8_t {
     SYNC_DEINIT
 };
 
+const int MAX_LISTEN_CONN = 512;
 struct s_info {
     sockaddr_in s_addr;
     int fd;
-} ts[256];
+} ts[MAX_LISTEN_CONN];
 
 const int PACKAGE_DATA_SIZE = 2000 * 8;
 

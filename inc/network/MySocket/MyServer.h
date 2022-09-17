@@ -117,6 +117,9 @@ static void my_server_run(const char *ip, int port) {
 
     int i = 0;
     while (1) {
+        if (i >= MAX_LISTEN_CONN) {
+            spdlog::error("listen fd exceed max listen num {}", MAX_LISTEN_CONN);
+        }
         int client_fd = accept(server_socket, (struct sockaddr*)&client, &len);
         if (client_fd < 0) {
             spdlog::error("accept socket error, ip {}", ip);

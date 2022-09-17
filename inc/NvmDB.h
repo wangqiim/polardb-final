@@ -68,7 +68,7 @@ static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len){
     static thread_local uint8_t tid = putTid++;
     if (tid >= PMEM_FILE_COUNT) {
-      spdlog::error("tid overflow, current tid = {}", tid);
+      spdlog::error("[Put] tid overflow, current tid = {}", tid);
     }
     static thread_local uint64_t write_count = 0;
     write_count++;
@@ -77,6 +77,8 @@ static void Put(const char *tuple, size_t len){
     }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
+    
+    broadcast_salary(*(uint64_t *)(tuple + 264));
 
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
@@ -113,7 +115,7 @@ static size_t Get(int32_t select_column,
     if (is_local == true && tid == 0) { // socket_server 也会调用该函数，防止tid溢出
       tid = getTid++;
       if (tid >= 50) {
-        if (tid >= SYNC_TID) {
+        if (tid >= MAX_Client_Num) {
           spdlog::error("[Get] tid overflow, tid = {}", tid);
           exit(1);
         }

@@ -24,7 +24,8 @@ const uint64_t PMEM_FILE_COUNT = 50;
 //有3个peer
 const int PeerHostInfoNum = 3;
 
-const int SYNC_TID = 100;
+const int MAX_Client_Num = 100; // 最大允许的线程数，初始化时，只初始化前50个读写client，之后的懒初始化
+const int SYNC_Init_Deinit_Tid = 0;
 
 bool is_use_remote_pk = false;
 
