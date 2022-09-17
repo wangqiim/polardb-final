@@ -15,7 +15,7 @@
 #include "../tools/MyStrHashMap.h"
 
 static uint64_t local_max_pks[50] = {0}, local_min_pks[50] = {0xFFFFFFFFFFFFFFFF};
-static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
+static uint64_t local_max_pk = 0xFFFFFFFFFFFFFFFF, local_min_pk = 0; // 前提：性能阶段在写阶段完成之前，不修改{min, max}，没有远程读pk(否则性能会变差)。
 
 static uint64_t blizardhashfn(const char *key) {
 //    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
