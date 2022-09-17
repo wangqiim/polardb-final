@@ -6,6 +6,7 @@
 #include "util.h"
 #include "spdlog/spdlog.h"
 
+#ifdef debug
 // 等价于客户端read的调用次数
 static std::atomic<uint32_t> pk_local_count(0);
 static std::atomic<uint32_t> uk_local_count(0);
@@ -14,6 +15,7 @@ static std::atomic<uint32_t> sk_local_count(0);
 static std::atomic<uint32_t> pk_remote_count(0);
 static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
+#endif
 
 std::mutex finished_mtx;
 std::condition_variable finished_cv;
@@ -52,12 +54,14 @@ static void Put(const char *tuple, size_t len){
         is_use_remote_pk = true;
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
+#ifdef debug
         spdlog::info("Server local get pk {}", pk_local_count);
         spdlog::info("Server local get uk {}", uk_local_count);
         spdlog::info("Server local get sk {}", sk_local_count);
         spdlog::info("Server remote get pk {}", pk_remote_count);
         spdlog::info("Server remote get uk {}", uk_remote_count);
         spdlog::info("Server remote get sk {}", sk_remote_count);
+#endif
         for (int i = 0; i < 50; i++) {
           if (local_max_pks[i] > local_max_pk) local_max_pk = local_max_pks[i];
           if (local_min_pks[i] < local_min_pk) local_min_pk = local_min_pks[i];
@@ -84,6 +88,7 @@ static size_t Get(int32_t select_column,
       }
     }
     // 2. 输出一些log来debug
+#ifdef debug
     static thread_local int local_read_count = 0;
     static thread_local int remote_read_count = 0;
     if (is_local) {
@@ -106,6 +111,7 @@ static size_t Get(int32_t select_column,
         spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
+#endif
     // 3. 尝试从本地读
     size_t local_get_count = 0;
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
@@ -135,9 +141,11 @@ static size_t Get(int32_t select_column,
 //    }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((local_get_count == 0 || where_column == Salary) && is_local) {
+#ifdef debug
       if (where_column == 0) pk_remote_count++;
       if (where_column == 1) uk_remote_count++;
       if (where_column == 3) sk_remote_count++;
+#endif
       Package result;
       if (where_column == 1) {
         char hash_colum_key[8];
@@ -176,12 +184,14 @@ static Package remoteGet(int32_t select_column,
 static void deinitNvmDB() {
   spdlog::info("NvmDB ready to deinit");
   deInitGroup();
+#ifdef debug
   spdlog::info("Server local get pk {}", pk_local_count);
   spdlog::info("Server local get uk {}", uk_local_count);
   spdlog::info("Server local get sk {}", sk_local_count);
   spdlog::info("Server remote get pk {}", pk_remote_count);
   spdlog::info("Server remote get uk {}", uk_remote_count);
   spdlog::info("Server remote get sk {}", sk_remote_count);
+#endif
   store_stat();
   spdlog::info("NvmDB deinit done");
 }
