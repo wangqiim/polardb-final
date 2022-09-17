@@ -14,6 +14,7 @@
 #include "../tools/MyHashMap/MyMultiMapV2.h"
 #include "../tools/MyStrHashMap.h"
 
+static uint64_t local_max_pks[50] = {0}, local_min_pks[50] = {0xFFFFFFFFFFFFFFFF};
 static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
 
 static uint64_t blizardhashfn(const char *key) {
@@ -132,6 +133,8 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
 //    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
   if (id > local_max_pk) local_max_pk= id;
   if (id < local_min_pk) local_min_pk = id;
+  if (id > local_max_pks[tid]) local_max_pks[tid] = id;
+  if (id < local_min_pks[tid]) local_min_pks[tid] = id;
   thread_pos[tid]++;
 }
 

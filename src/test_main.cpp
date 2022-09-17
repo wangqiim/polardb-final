@@ -8,7 +8,7 @@
 #include <atomic>
 #include <sstream>
 #include <iomanip>
-#include <vector>
+
 class TestUser
 {
 public:
@@ -38,7 +38,7 @@ std::string randstr(int max_len)
     int real_len = max_len;
     if(real_len == 0) return "";
     char* str = (char*)malloc(real_len);
-
+    
     for (int i = 0; i < real_len; ++i)
     {
         switch ((rand() % 3))
@@ -62,7 +62,7 @@ std::string randstr(int max_len)
 
 // 线程的运行函数
 void* thread_write(void* ctx)
-{
+{   
     int id = *(int *)ctx;
     std::string file = "./Dataset/user" + std::to_string(id) + ".dat";
     // std::cout << file << std::endl;
@@ -88,8 +88,8 @@ void* thread_read(void* ctx)
         char res[2000*128];
         user.id = id * 1000000UL + i;
         user.salary = id * 10000000UL + 100 + i%20000 * 10;
-        memcpy(&user.name,"hrh",3);
-        memcpy(&user.user_id,"1000085000",11);
+        memcpy(&user.name,"hrh",3); 
+        memcpy(&user.user_id,"1000085000",11); 
         engine_read(ctx, Salary, Id, &user.id, 8, res);
         engine_read(ctx, Id, Salary, &user.salary, 8, res);
         engine_read(ctx, Name, Id, &user.id, 8, res);
@@ -102,7 +102,7 @@ bool test_is_ok(void *ctx) {
     char res[2000*128];
     user.id = 340000;
     user.salary = 340001;
-    memcpy(&user.name,"hrh\n0000\nqwer",14);
+    memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {33,74,26,47,77,91,7,8,79,65,18,51,5,16,8,9,59,15,17,23,66,8,85,4,7,27,15,20,54,4,55,20,28,61,77,14,33,8,15,76,13,24,23,12,3,34,95,31,40,1,101,1,15,23,5,29,6,12,28,11,42,22,6,1,72,10,8,20,59,35,2,17,79,11,25,40,45,9,6,10,75,24,34,18,32,15,54,101,5,42,42,2,9,41,74,14,6,51,11,86,5,21,75,11,62,5,22,17,19,45,56,1,48,45,96,25,7,3,8,86,43,22,74,13,37,34,110,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
     int record_count = 0;
@@ -146,14 +146,14 @@ bool test_is_ok(void *ctx) {
     std::cout << "查询 userid = " << to_hex2(userid, 128) << " where id = " << user.id << " Count = " << record_count << std::endl;
     // user.id = 1;
     // user.salary = 100;
-    // memcpy(&user.name,"hellow",6);
-    // memcpy(&user.user_id,"1122333",7);
-    // engine_write(ctx,&user,sizeof(user));
+    // memcpy(&user.name,"hellow",6); 
+    // memcpy(&user.user_id,"1122333",7); 
+    // engine_write(ctx,&user,sizeof(user));    
     // if(engine_read(ctx, Id, Id, &user.id, 8, res) != 1) return false;
     // if(engine_read(ctx, Salary, Salary, &user.salary, 8, res) != 2) return false;
     // if(engine_read(ctx, Name, Name, &user.name, 128, res) != 1) return false;
-    // if(engine_read(ctx, Userid, Userid, &user.user_id, 128, res) != 1) return false;
-    return true;
+    // if(engine_read(ctx, Userid, Userid, &user.user_id, 128, res) != 1) return false;   
+    return true; 
 }
 
 void test_write(__attribute__((unused)) void *ctx) {

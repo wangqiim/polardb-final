@@ -14,7 +14,7 @@ static std::atomic<uint32_t> sk_local_count(0);
 static std::atomic<uint32_t> pk_remote_count(0);
 static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
-//static std::atomic<uint32_t> total_write_count(0);
+static std::atomic<uint32_t> total_write_count(0);
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
@@ -34,36 +34,28 @@ static void Put(const char *tuple, size_t len){
     }
     static thread_local uint64_t write_count = 0;
     write_count++;
-//    total_write_count++;
+    total_write_count++;
     if (write_count > PER_THREAD_MAX_WRITE) {
       spdlog::error("write_count overflow!");
     }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
 
-    if (write_count == 5000000) {
-//      Store_Sync();
+    if (total_write_count == TOTAL_WRITE_NUM) {
+      Store_Sync();
       is_use_remote_pk = true;
       Util::print_resident_set_size();
-      spdlog::info("total write {} tuples", 5000000);
+      spdlog::info("total write {} tuples", total_write_count);
       spdlog::info("Server local get pk {}", pk_local_count);
       spdlog::info("Server local get uk {}", uk_local_count);
       spdlog::info("Server local get sk {}", sk_local_count);
       spdlog::info("Server remote get pk {}", pk_remote_count);
       spdlog::info("Server remote get uk {}", uk_remote_count);
       spdlog::info("Server remote get sk {}", sk_remote_count);
-      if (local_max_pk < 2e8) {
-        local_max_pk = 2e8 - 1;
-        local_min_pk = 0;
-      } else if (local_max_pk < 4e8) {
-        local_max_pk = 4e8 - 1;
-        local_min_pk = 2e8;
-      } if (local_max_pk < 6e8) {
-        local_max_pk = 6e8 - 1;
-        local_min_pk = 4e8;
-      } if (local_max_pk < 8e8) {
-        local_max_pk = 8e8 - 1;
-        local_min_pk = 6e8;
+
+      for (int i = 0; i < 50; i++) {
+        if (local_max_pks[i] > local_max_pk) local_max_pk = local_max_pks[i];
+        if (local_min_pks[i] < local_min_pk) local_min_pk = local_min_pks[i];
       }
     }
 }
