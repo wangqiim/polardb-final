@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
-std::string global_peer_host_info[PeerHostInfoNum];
+std::vector<std::string> global_peer_host_info;
 
 enum class RequestType : uint8_t {
     WHERE_ID, // default 0

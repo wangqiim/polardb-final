@@ -65,6 +65,7 @@ void *connect_client(void *arg) {
             } else if (writen_bytes != 1) {
                 spdlog::error("[connect_client] RequestType::SEND_SALARY write fail, writen_bytes = {}, expected = {}", writen_bytes, sizeof(uint8_t));
             }
+            continue;
         }
         uint8_t selectColum = (uint8_t)request_type;
         uint8_t whereColum = *(uint8_t *)(buf + 1);
@@ -149,10 +150,12 @@ static void my_server_run(const char *ip, int port) {
             ip = s.substr(0,flag);
             if (ts[i].s_addr.sin_addr.s_addr == inet_addr(ip.c_str())) {
                 ts[i].peer_idx = idx;
+                break;
             }
         }
         if (ts[i].peer_idx == -1) {
-            spdlog::info("[my_server_run] set peer_idx fail!");
+            spdlog::error("[my_server_run] set peer_idx fail!");
+            exit(0);
         }
 
         pthread_t tid;

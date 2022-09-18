@@ -52,11 +52,6 @@ static void mustAddConnect(int tid) {
 }
 
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
-  pthread_t serverId;
-  int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
-  if (ret != 0) {
-    spdlog::error("[initGroup] pthread_create error, ret = {}", ret);
-  }
   // 给peer_host_info排序
   std::string host_info_str(host_info);
   std::vector<std::string> all_host_info_str;
@@ -69,17 +64,20 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   for (idx = 0; idx < all_host_info_str.size(); idx++) {
     if (all_host_info_str[idx] == host_info_str) break;
   }
-  std::vector<std::string> sorted_peer_host_info;
   int t = peer_host_info_num; // 3
   while (t--) {
     idx = (idx + 1) % all_host_info_str.size();
-    sorted_peer_host_info.push_back(all_host_info_str[idx]);
+    global_peer_host_info.push_back(all_host_info_str[idx]);
   }
 
+  pthread_t serverId;
+  int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
+  if (ret != 0) {
+    spdlog::error("[initGroup] pthread_create error, ret = {}", ret);
+  }
   // 初始化连接 read clients, write clients, sync clients
   for (size_t i = 0; i < peer_host_info_num; i++) {
-    global_peer_host_info[i] = sorted_peer_host_info[i];
-    std::string s = sorted_peer_host_info[i];
+    std::string s = global_peer_host_info[i];
     std::string ip, port;
     int flag = s.find(":");
     ip = s.substr(0,flag);
@@ -143,7 +141,7 @@ static Package clientRemoteGet(int32_t select_column,
       }
       pk_has_find_server = true;
     }
-    if (where_column == Salary && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     // 不需要检验ret,如果发送出错，读的时候也会出错，不会永远阻塞住。
     client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
   }
@@ -152,7 +150,7 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
-    if (where_column == Salary && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
       continue;

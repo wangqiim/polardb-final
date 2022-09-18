@@ -139,8 +139,7 @@ static char *GetUserIdByPos(uint32_t pos) {
 }
 
 // build index
-static void recovery() {
-  uint64_t recovery_cnt = 0;
+static void recovery() {;
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint32_t commit_cnt = *(uint32_t *)(MBM[i].address - 4);
     for (uint64_t j = 0; j < commit_cnt; j++) {

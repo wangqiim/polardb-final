@@ -23,7 +23,6 @@ class MyStringHashMap {
 
   static uint32_t peer_idx2Pos(int peer_idx) { return uint32_t(peer_idx) | 0x80000000; }
   static int Pos2Peer_idx(uint32_t pos) { return pos &0x7FFFFFF; }
-  // 返回值: -1表示，本地，0,1,2分别对应peer_idx
   static int is_local(uint32_t pos) { return (pos & 0x80000000) == 0; }
 
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
