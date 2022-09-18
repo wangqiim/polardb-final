@@ -75,13 +75,16 @@ class MyStringHashMap {
   void insert(uint64_t key, uint32_t value) {
     uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) {
-      hash_table[pos].value = value + 1;
-    } else {
-      std::lock_guard<std::mutex> guard(mtx);
-      kv_pair temp = {key ,value};
-      pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * sizeof(kv_pair), &temp, sizeof(kv_pair));
-      pmem_record_num_++;
+      uint32_t expect_value = 0;
+      auto value_ptr = (std::atomic<uint32_t> *)(&hash_table[pos].value);
+      if (value_ptr->compare_exchange_strong(expect_value, value + 1)) {
+        return;
+      }
     }
+    std::lock_guard<std::mutex> guard(mtx);
+    kv_pair temp = {key ,value};
+    pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * sizeof(kv_pair), &temp, sizeof(kv_pair));
+    pmem_record_num_++;
   }
 
   void stat() {
