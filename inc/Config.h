@@ -34,6 +34,6 @@ enum Column{Id=0,Userid,Name,Salary};
 // NvmStore.h
 static char *GetUserIdByPos(uint32_t pos);
  
-// #define debug_db
+#define debug_db
 
 #endif
