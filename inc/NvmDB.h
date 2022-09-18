@@ -78,7 +78,7 @@ static void Put(const char *tuple, size_t len){
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
     
-    broadcast_salary(*(uint64_t *)(tuple + 264));
+    broadcast_salary(*(uint64_t *)(tuple + 264), tid);
 
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
@@ -152,7 +152,8 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
+        bool need_remote_peers[3] = {false, false, false}; // 目前只控制salary
+        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local, need_remote_peers);
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
@@ -186,9 +187,9 @@ static size_t Get(int32_t select_column,
         char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
         memcpy(hash_colum_key, &uid.hashCode, 8);
-        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid);
+        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
-        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
+        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;

@@ -158,7 +158,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
 //    return 0;
 //}
 
-static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
+static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
@@ -195,7 +195,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 //    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   } else if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
-    sk.get(salary, result);
+    sk.get(salary, result, need_remote_peers);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
     // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
 //    uint64_t sk_shard = sk_shardhashfn(salary);
@@ -209,4 +209,8 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
   }
 
   return result;
+}
+
+static void insertRemoteSalaryToIndex(int peer_idx, uint64_t salary) {
+  sk.insert(salary, MyStringHashMap::peer_idx2Pos(peer_idx)); // 将pos的最高位置为1，用来区分本地写和远端写
 }

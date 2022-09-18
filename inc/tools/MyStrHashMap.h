@@ -20,6 +20,12 @@ struct alignas(4) MyStrHead {
 
 class MyStringHashMap {
   public:
+
+  static uint32_t peer_idx2Pos(int peer_idx) { return uint32_t(peer_idx) | 0x80000000; }
+  static int Pos2Peer_idx(uint32_t pos) { return pos &0x7FFFFFF; }
+  // 返回值: -1表示，本地，0,1,2分别对应peer_idx
+  static int is_local(uint32_t pos) { return (pos & 0x80000000) == 0; }
+
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
   MyStringHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
@@ -40,17 +46,27 @@ class MyStringHashMap {
     delete hash_table;
   }
 
- void get(uint64_t key, std::vector<uint32_t> &ans) {
+ void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
     uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) return;
     else {
-      ans.push_back(hash_table[pos].value - 1);
+      uint32_t pos = hash_table[pos].value - 1;
+      if (is_local(pos)) {
+        ans.push_back(pos);
+      } else {
+        need_remote_peers[Pos2Peer_idx(pos)] = true;
+      }
       if (pmem_record_num_ != 0) {
         std::lock_guard<std::mutex> guard(mtx);
         for (uint64_t i = 0; i < pmem_record_num_; i++) {
           kv_pair temp = *(kv_pair *)(pmem_addr_ + i * sizeof(kv_pair));
           if (key == temp.first) {
-            ans.push_back(temp.second);
+            uint32_t pos = temp.second;
+            if (is_local(pos)) {
+              ans.push_back(pos);
+            } else {
+              need_remote_peers[Pos2Peer_idx(pos)] = true;
+            }
           }
         }
       }

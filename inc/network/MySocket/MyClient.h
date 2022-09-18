@@ -111,7 +111,11 @@ int client_salary_send(uint64_t salary, int tid, int server) {
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  ssize_t send_bytes = send(write_clients[server][tid], &salary, sizeof(uint64_t), 0); 
+  const int need_send_size = sizeof(uint8_t) + sizeof(uint64_t);
+  char send_buf[20];
+  *(uint8_t *)send_buf = uint8_t(RequestType::SEND_SALARY);
+  *(uint64_t *)(send_buf + 1) = salary;
+  ssize_t send_bytes = send(write_clients[server][tid], send_buf, need_send_size, 0);
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof
       spdlog::debug("[client_salary_send] read eof!");
@@ -121,8 +125,8 @@ int client_salary_send(uint64_t salary, int tid, int server) {
     write_clients[server][tid] = -1;
     return -1;
   } else {
-    if (send_bytes != sizeof(uint64_t)) {
-      spdlog::error("[client_salary_send] send fail, send_bytes = {}, expected len: {}", send_bytes, sizeof(uint64_t));
+    if (send_bytes != need_send_size) {
+      spdlog::error("[client_salary_send] send fail, send_bytes = {}, expected len: {}", send_bytes, need_send_size);
       exit(1);
       write_clients[server][tid] = -1;
       return -1;

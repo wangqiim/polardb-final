@@ -20,6 +20,7 @@ static Package remoteGet(int32_t select_column,
 
 static bool serverSyncInit();
 static bool serverSyncDeinit();
+static void insertRemoteSalaryToIndex(int peer_idx, uint64_t salary);
 
 void *connect_client(void *arg) {
     struct s_info *ts = (struct s_info *)arg;
@@ -52,6 +53,18 @@ void *connect_client(void *arg) {
                 spdlog::error("[connect_client] sync write fail, writen_bytes = {}, expected = {}", writen_bytes, 1);
             }
             continue;            
+        } else if (request_type == RequestType::SEND_SALARY) {
+            uint8_t ack = 0;
+            if (size_len != sizeof(uint8_t) + sizeof(uint64_t)) {
+                spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
+            }
+            insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(buf + 1));
+            int writen_bytes = write(ts->fd, &ack, sizeof(uint8_t));
+            if (writen_bytes < 0) {
+                spdlog::error("[connect_client] RequestType::SEND_SALARY send ack error, errno = {}", errno);
+            } else if (writen_bytes != 1) {
+                spdlog::error("[connect_client] RequestType::SEND_SALARY write fail, writen_bytes = {}, expected = {}", writen_bytes, sizeof(uint8_t));
+            }
         }
         uint8_t selectColum = (uint8_t)request_type;
         uint8_t whereColum = *(uint8_t *)(buf + 1);
@@ -128,6 +141,19 @@ static void my_server_run(const char *ip, int port) {
         }
         ts[i].s_addr = client;
         ts[i].fd = client_fd;
+        ts[i].peer_idx = -1;
+        for (size_t idx = 0; idx < PeerHostInfoNum; idx++) {
+            std::string s = global_peer_host_info[idx];
+            std::string ip, port;
+            int flag = s.find(":");
+            ip = s.substr(0,flag);
+            if (ts[i].s_addr.sin_addr.s_addr == inet_addr(ip.c_str())) {
+                ts[i].peer_idx = idx;
+            }
+        }
+        if (ts[i].peer_idx == -1) {
+            spdlog::info("[my_server_run] set peer_idx fail!");
+        }
 
         pthread_t tid;
         pthread_create(&tid, NULL, connect_client, (void *)&ts[i]);
