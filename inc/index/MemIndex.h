@@ -212,6 +212,6 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 }
 
 static void insertRemoteSalaryToIndex(int peer_idx, uint64_t salary) {
-  spdlog::info("[insertRemoteSalaryToIndex] insert peer_idx: {}, salary: {}", peer_idx, salary);
+  spdlog::debug("[insertRemoteSalaryToIndex] insert peer_idx: {}, salary: {}", peer_idx, salary);
   sk.insert(salary, MyStringHashMap::peer_idx2Pos(peer_idx)); // 将pos的最高位置为1，用来区分本地写和远端写
 }
