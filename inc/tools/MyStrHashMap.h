@@ -21,9 +21,9 @@ struct alignas(4) MyStrHead {
 class MyStringHashMap {
   public:
 
-  static uint32_t peer_idx2Pos(int peer_idx) { return uint32_t(peer_idx) | 0x80000000; }
-  static int Pos2Peer_idx(uint32_t pos) { return pos &0x7FFFFFF; }
-  static int is_local(uint32_t pos) { return (pos & 0x80000000) == 0; }
+  static uint32_t peer_idx2Pos(int peer_idx) { return uint32_t(peer_idx) | 0x80000000UL; }
+  static int Pos2Peer_idx(uint32_t pos) { return pos & 0x7FFFFFFFUL; }
+  static bool is_local(uint32_t pos) { return (pos & 0x80000000UL) == 0; }
 
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
   MyStringHashMap(uint32_t hashSize, std::string file_name) {
@@ -46,10 +46,10 @@ class MyStringHashMap {
   }
 
  void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
-    uint32_t pos = key & (hashSize_ - 1);
-    if (hash_table[pos].value == 0) return;
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    if (hash_table[bucket_idx].value == 0) return;
     else {
-      uint32_t pos = hash_table[pos].value - 1;
+      uint32_t pos = hash_table[bucket_idx].value - 1;
       if (is_local(pos)) {
         ans.push_back(pos);
       } else {
@@ -73,10 +73,10 @@ class MyStringHashMap {
   }
 
   void insert(uint64_t key, uint32_t value) {
-    uint32_t pos = key & (hashSize_ - 1);
-    if (hash_table[pos].value == 0) {
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    if (hash_table[bucket_idx].value == 0) {
       uint32_t expect_value = 0;
-      auto value_ptr = (std::atomic<uint32_t> *)(&hash_table[pos].value);
+      auto value_ptr = (std::atomic<uint32_t> *)(&hash_table[bucket_idx].value);
       if (value_ptr->compare_exchange_strong(expect_value, value + 1)) {
         return;
       }
