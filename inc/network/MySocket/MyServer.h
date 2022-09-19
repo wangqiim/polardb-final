@@ -57,6 +57,8 @@ void *connect_client(void *arg) {
             while (true) {
                 if (size_len <= 0 || size_len % 9 != 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
+                    close(ts->fd);
+                    pthread_exit(NULL);
                 }
                 int salary_cnt = size_len / 9;
                 char *salary_ptr = buf + 1;
