@@ -79,7 +79,7 @@ static void Put(const char *tuple, size_t len){
     insert(tuple, len, tid);
     
     spdlog::debug("[Put] local write salary: {}", *(uint64_t *)(tuple + 264));
-    // broadcast_salary(*(uint64_t *)(tuple + 264), tid);
+    broadcast_salary(*(uint64_t *)(tuple + 264), tid);
 
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
