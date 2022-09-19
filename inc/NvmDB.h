@@ -46,7 +46,7 @@ void stat_log() {
   spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
   spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
   spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
-  spdlog::info("sk collision_num = {}", sk.collision_num());
+  sk.stat();
 }
 
 #endif

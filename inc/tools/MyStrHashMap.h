@@ -90,7 +90,27 @@ class MyStringHashMap {
   }
 
   void stat() {
-    // std::cout << "recovery boom " << hash_boom << std::endl;
+    uint32_t inplace_value_cnt = 0;
+    uint32_t local_value_cnt = 0; // 本节点的数据有多少
+    uint32_t peers_cnt[3] = {0, 0, 0}; // 三个节点的数据分别是多少
+    for (uint32_t i = 0; i < hashSize_; i++) {
+      if (hash_table[i].value != 0) {
+        inplace_value_cnt++;
+        uint32_t pos = hash_table[i].value - 1;
+        if (is_local(pos)) {
+          local_value_cnt++;
+        } else {
+          if (Pos2Peer_idx(pos) != 0 && Pos2Peer_idx(pos) != 1 && Pos2Peer_idx(pos) != 2) {
+            spdlog::error("[sk stat] invalid Pos2Peer_idx(pos) = {}", Pos2Peer_idx(pos));
+            exit(1);
+          }
+          peers_cnt[Pos2Peer_idx(pos)]++;
+        }
+      }
+    }
+    spdlog::info("[sk stat] collision_num = {}", collision_num());
+    spdlog::info("[sk stat] inplace_value_cnt = {}", inplace_value_cnt);
+    spdlog::info("[sk stat] local_value_cnt = {}, peers_cnts = {}, {}, {}", local_value_cnt, peers_cnt[0], peers_cnt[1], peers_cnt[2]);
   }
 
   uint64_t collision_num() { return pmem_record_num_; }
