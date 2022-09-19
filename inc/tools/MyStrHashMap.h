@@ -84,9 +84,9 @@ class MyStringHashMap {
       // }
     }
     std::lock_guard<std::mutex> guard(mtx);
-    pmem_record_num_++;
     kv_pair temp = {key ,value};
     pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * sizeof(kv_pair), &temp, sizeof(kv_pair));
+    pmem_record_num_++;
   }
 
   void stat() {
