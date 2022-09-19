@@ -27,6 +27,8 @@ const int PeerHostInfoNum = 3;
 const int MAX_Client_Num = 100; // 最大允许的线程数，初始化时，只初始化前50个读写client，之后的懒初始化
 const int SYNC_Init_Deinit_Tid = 0;
 
+const uint32_t Salary_Cache_Num = 6e8;
+
 bool is_use_remote_pk = false;
 
 uint64_t recovery_cnt = 0;

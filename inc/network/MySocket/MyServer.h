@@ -3,6 +3,8 @@
 
 #include "MySocket.h"
 
+std::atomic<uint32_t> finish_sync_cnt = 0;
+
 std::string to_hex(unsigned char* data, int len) {
     std::stringstream ss;
     ss << std::uppercase << std::hex << std::setfill('0');
@@ -13,7 +15,7 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const int BUFSIZE = 144;
+const int BUFSIZE = 9216;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -54,6 +56,7 @@ void *connect_client(void *arg) {
             }
             continue;            
         } else if (request_type == RequestType::SEND_SALARY) {
+            uint32_t cache_replay_cnt = 0;
             while (true) {
                 if (size_len <= 0 || size_len % 9 != 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
@@ -66,6 +69,10 @@ void *connect_client(void *arg) {
                     insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
                     salary_ptr += 9;
                     salary_cnt--;
+                    cache_replay_cnt++;
+                }
+                if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
+                    finish_sync_cnt += PER_THREAD_MAX_WRITE;
                 }
                 size_len = read(ts->fd, buf, BUFSIZE);
             }
