@@ -196,6 +196,9 @@ static size_t Get(int32_t select_column,
         memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
+        need_remote_peers[0] = true;
+        need_remote_peers[1] = true;
+        need_remote_peers[2] = true;
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;
