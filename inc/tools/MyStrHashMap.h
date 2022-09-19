@@ -93,6 +93,8 @@ class MyStringHashMap {
     // std::cout << "recovery boom " << hash_boom << std::endl;
   }
 
+  uint64_t collision_num() { return pmem_record_num_; }
+
   private:
     MyStrHead *hash_table;
     uint32_t hashSize_ = 1<<30;

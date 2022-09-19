@@ -46,6 +46,7 @@ void stat_log() {
   spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
   spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
   spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
+  spdlog::info("sk collision_num = {}", sk.collision_num());
 }
 
 #endif
@@ -100,8 +101,8 @@ static void Put(const char *tuple, size_t len){
         local_max_pk = tmp_max;
         local_min_pk = tmp_min;
         is_use_remote_pk = true;
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(300s);
+        // using namespace std::chrono_literals;
+        // std::this_thread::sleep_for(300s);
 
         finished_cv.notify_all();
       }
