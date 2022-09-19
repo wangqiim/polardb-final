@@ -182,7 +182,7 @@ static size_t Get(int32_t select_column,
         }
         local_get_count = posArray.size();
 
-        if (where_column == Salary && local_get_count > 0) {
+        if (where_column == Salary && local_get_count > 0 && is_use_remote_pk) {
           if(!need_remote_peers[0] && !need_remote_peers[1] && !need_remote_peers[2]) {
             return local_get_count;
           } else {
