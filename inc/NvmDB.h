@@ -182,14 +182,6 @@ static size_t Get(int32_t select_column,
         }
         local_get_count = posArray.size();
 
-//        if (where_column == Salary && local_get_count > 0 && is_use_remote_pk) {
-//          if(!need_remote_peers[0] && !need_remote_peers[1] && !need_remote_peers[2]) {
-//            return local_get_count;
-//          } else {
-//            spdlog::error("sk no remote get");
-//          }
-//        }
-//    }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((local_get_count == 0 || where_column == Salary) && is_local) {
 #ifdef debug_db
@@ -204,9 +196,9 @@ static size_t Get(int32_t select_column,
         memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
-        need_remote_peers[0] = true;
-        need_remote_peers[1] = true;
-        need_remote_peers[2] = true;
+//        need_remote_peers[0] = true;
+//        need_remote_peers[1] = true;
+//        need_remote_peers[2] = true;
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;
