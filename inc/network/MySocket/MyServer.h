@@ -13,7 +13,7 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const int BUFSIZE = 130;
+const int BUFSIZE = 144;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -54,18 +54,19 @@ void *connect_client(void *arg) {
             }
             continue;            
         } else if (request_type == RequestType::SEND_SALARY) {
-            uint8_t ack = 0;
-            if (size_len != sizeof(uint8_t) + sizeof(uint64_t)) {
-                spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
+            while (true) {
+                if (size_len <= 0 || size_len % 9 != 0) {
+                    spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
+                }
+                int salary_cnt = size_len / 9;
+                char *salary_ptr = buf + 1;
+                while (salary_cnt != 0) {
+                    insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
+                    salary_ptr += 9;
+                    salary_cnt--;
+                }
+                size_len = read(ts->fd, buf, BUFSIZE);
             }
-            insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(buf + 1));
-            int writen_bytes = write(ts->fd, &ack, sizeof(uint8_t));
-            if (writen_bytes < 0) {
-                spdlog::error("[connect_client] RequestType::SEND_SALARY send ack error, errno = {}", errno);
-            } else if (writen_bytes != 1) {
-                spdlog::error("[connect_client] RequestType::SEND_SALARY write fail, writen_bytes = {}, expected = {}", writen_bytes, sizeof(uint8_t));
-            }
-            continue;
         }
         uint8_t selectColum = (uint8_t)request_type;
         uint8_t whereColum = *(uint8_t *)(buf + 1);

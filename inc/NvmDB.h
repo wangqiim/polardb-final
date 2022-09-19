@@ -100,8 +100,8 @@ static void Put(const char *tuple, size_t len){
         local_max_pk = tmp_max;
         local_min_pk = tmp_min;
         is_use_remote_pk = true;
-        // using namespace std::chrono_literals;
-        // std::this_thread::sleep_for(300s);
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(300s);
 
         finished_cv.notify_all();
       }
