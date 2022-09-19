@@ -141,7 +141,7 @@ static Package clientRemoteGet(int32_t select_column,
       }
       pk_has_find_server = true;
     }
-    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0) continue; // 过滤salary remote get
     // 不需要检验ret,如果发送出错，读的时候也会出错，不会永远阻塞住。
     client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
   }
@@ -150,7 +150,7 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
-    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0) continue; // 过滤salary remote get
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
       continue;
