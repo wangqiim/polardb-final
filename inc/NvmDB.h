@@ -178,7 +178,7 @@ static size_t Get(int32_t select_column,
                     exit(1);
                 }
             }
-            if (where_column != Salary) return posArray.size();
+            if (where_column != Salary || is_use_remote_pk) return posArray.size();
         }
         local_get_count = posArray.size();
 //    }
