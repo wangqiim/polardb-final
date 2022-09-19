@@ -178,17 +178,17 @@ static size_t Get(int32_t select_column,
                     exit(1);
                 }
             }
-            if (where_column != Salary) return posArray.size();
+            if (where_column != Salary || is_use_remote_pk) return posArray.size();
         }
         local_get_count = posArray.size();
 
-        if (where_column == Salary && local_get_count > 0 && is_use_remote_pk) {
-          if(!need_remote_peers[0] && !need_remote_peers[1] && !need_remote_peers[2]) {
-            return local_get_count;
-          } else {
-            spdlog::error("sk no remote get");
-          }
-        }
+//        if (where_column == Salary && local_get_count > 0 && is_use_remote_pk) {
+//          if(!need_remote_peers[0] && !need_remote_peers[1] && !need_remote_peers[2]) {
+//            return local_get_count;
+//          } else {
+//            spdlog::error("sk no remote get");
+//          }
+//        }
 //    }
     // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
     if ((local_get_count == 0 || where_column == Salary) && is_local) {
