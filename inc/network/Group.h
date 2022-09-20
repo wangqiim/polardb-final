@@ -135,10 +135,10 @@ static Package clientRemoteGet(int32_t select_column,
   uint64_t id_to_server = (*(uint64_t *)column_key) / 200000000;
   bool pk_has_find_server = false;
 
-  if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[0] == false && need_remote_peers[1] == false && need_remote_peers[2] == false) {
-    spdlog::error("[clientRemoteGet] cache mismatch, salary={}, need_remote_peers=[{}, {}, {}]", 
-      *(uint64_t *)(column_key), need_remote_peers[0],need_remote_peers[1],need_remote_peers[2]);
-  }
+  // if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[0] == false && need_remote_peers[1] == false && need_remote_peers[2] == false) {
+  //   spdlog::error("[clientRemoteGet] cache mismatch, salary={}, need_remote_peers=[{}, {}, {}]", 
+  //     *(uint64_t *)(column_key), need_remote_peers[0],need_remote_peers[1],need_remote_peers[2]);
+  // }
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (where_column == 0 && is_use_remote_pk && id_to_server < 4 && remote_pk_in_client[id_to_server] > 0) {
       if(i != remote_pk_in_client[id_to_server] - 1) {
@@ -199,6 +199,9 @@ static Package clientRemoteGet(int32_t select_column,
   }
   if (result.size == 0 && where_column == Salary && is_use_remote_pk && recovery_cnt == 0) {
     spdlog::error("[clientRemoteGet] cache mismatch, salary={}, need_remote_peers=[{}, {}, {}]", *(uint64_t *)(column_key), need_remote_peers[0],need_remote_peers[1],need_remote_peers[2]);
+    if (need_remote_peers[0] == true && need_remote_peers[1] == true && need_remote_peers[2] == true) {
+      return result;
+    }
     need_remote_peers[0] = need_remote_peers[1] = need_remote_peers[2] = true;
     return clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
   }
