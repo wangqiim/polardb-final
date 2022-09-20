@@ -15,7 +15,7 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const int BUFSIZE = 18200;
+const int BUFSIZE = 16200;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -58,16 +58,16 @@ void *connect_client(void *arg) {
         } else if (request_type == RequestType::SEND_SALARY) {
             uint32_t cache_replay_cnt = 0;
             while (true) {
-                if (size_len <= 0 || size_len % 91 != 0) {
+                if (size_len <= 0 || size_len % 81 != 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                int salary_cnt = (size_len / 91) * 10;
+                int salary_cnt = (size_len / 81) * 10;
                 char *salary_ptr = buf + 1;
                 while (salary_cnt != 0) {
                     insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
-                    salary_ptr += 9;
+                    salary_ptr += 8;
                     salary_cnt--;
                     cache_replay_cnt++;
                 }
