@@ -53,6 +53,11 @@ class MyStringHashMap {
       if (is_local(pos)) {
         ans.push_back(pos);
       } else {
+        if (is_use_remote_pk) {
+          if (Pos2Peer_idx(pos) != 0 && Pos2Peer_idx(pos) != 1 && Pos2Peer_idx(pos) != 2) {
+            spdlog::error("[get] inplace error, Pos2Peer_idx(pos) = {}", Pos2Peer_idx(pos));
+          }
+        }
         need_remote_peers[Pos2Peer_idx(pos)] = true;
       }
       if (pmem_record_num_ != 0) {

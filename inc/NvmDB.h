@@ -90,9 +90,6 @@ static void Put(const char *tuple, size_t len){
         Store_Sync();
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
-#ifdef debug_db
-        stat_log();
-#endif
         uint64_t tmp_max = 0, tmp_min = 0xFFFFFFFFFFFFFFFF;
         for (int i = 0; i < 50; i++) {
           if (local_max_pks[i] > tmp_max) tmp_max = local_max_pks[i];
@@ -108,6 +105,10 @@ static void Put(const char *tuple, size_t len){
           std::this_thread::sleep_for(10ms);
         }
         spdlog::info("salary cache replay done!");
+        #ifdef debug_db
+          stat_log();
+        #endif
+        spdlog::info("notify all write threads!");
         is_use_remote_pk = true;
         finished_cv.notify_all();
       }
