@@ -63,13 +63,16 @@ void *connect_client(void *arg) {
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                int salary_cnt = (size_len / 81) * 10;
+                int salary_cnt = (size_len / 81);
                 char *salary_ptr = buf + 1;
                 while (salary_cnt != 0) {
-                    insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
-                    salary_ptr += 8;
+                    for(int i = 0; i < 10; i++) {
+                      insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *) (salary_ptr));
+                      salary_ptr += 8;
+                    }
                     salary_cnt--;
-                    cache_replay_cnt++;
+                    salary_ptr++;
+                    cache_replay_cnt+=10;
                 }
                 if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
                     finish_sync_cnt += PER_THREAD_MAX_WRITE;
