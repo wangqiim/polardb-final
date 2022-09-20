@@ -110,6 +110,8 @@ static void Put(const char *tuple, size_t len){
         #endif
         spdlog::info("notify all write threads!");
         is_use_remote_pk = true;
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(300s);
         finished_cv.notify_all();
       }
     }
@@ -198,10 +200,10 @@ static size_t Get(int32_t select_column,
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
         // 三个节点有一个命中缓存，就广播
-        bool need_bc = need_remote_peers[0] | need_remote_peers[1] | need_remote_peers[2];
-        need_remote_peers[0] = need_bc;
-        need_remote_peers[1] = need_bc;
-        need_remote_peers[2] = need_bc;
+        // bool need_bc = need_remote_peers[0] | need_remote_peers[1] | need_remote_peers[2];
+        // need_remote_peers[0] = need_bc;
+        // need_remote_peers[1] = need_bc;
+        // need_remote_peers[2] = need_bc;
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;
