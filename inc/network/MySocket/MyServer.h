@@ -15,7 +15,7 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const int BUFSIZE = 9216;
+const int BUFSIZE = 18200;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
