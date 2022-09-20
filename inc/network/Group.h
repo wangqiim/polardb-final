@@ -192,7 +192,7 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
-void broadcast_salary(uint64_t salary, uint8_t tid) {
+void broadcast_salary(char *salary, uint8_t tid) {
   for (int i = 0; i < PeerHostInfoNum; i++) {
     client_salary_send(salary, tid, i); // 忽视失败
   }

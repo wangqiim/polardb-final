@@ -58,12 +58,12 @@ void *connect_client(void *arg) {
         } else if (request_type == RequestType::SEND_SALARY) {
             uint32_t cache_replay_cnt = 0;
             while (true) {
-                if (size_len <= 0 || size_len % 9 != 0) {
+                if (size_len <= 0 || size_len % 91 != 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                int salary_cnt = size_len / 9;
+                int salary_cnt = (size_len / 91) * 10;
                 char *salary_ptr = buf + 1;
                 while (salary_cnt != 0) {
                     insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
