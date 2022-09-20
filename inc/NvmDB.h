@@ -159,7 +159,7 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        bool need_remote_peers[3] = {false, false, false}; // 目前只控制salary
+        bool need_remote_peers[3] = {true, true, true}; // 目前只控制salary
         std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local, need_remote_peers);
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
@@ -197,10 +197,6 @@ static size_t Get(int32_t select_column,
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
         // 三个节点有一个命中缓存，就广播
-        bool need_bc = need_remote_peers[0] | need_remote_peers[1] | need_remote_peers[2];
-        need_remote_peers[0] = need_bc;
-        need_remote_peers[1] = need_bc;
-        need_remote_peers[2] = need_bc;
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;

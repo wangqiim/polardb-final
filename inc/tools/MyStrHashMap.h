@@ -53,7 +53,9 @@ class MyStringHashMap {
       if (is_local(pos)) {
         ans.push_back(pos);
       } else {
-        need_remote_peers[Pos2Peer_idx(pos)] = true;
+        for(int i = 0; i < 3; i++) {
+          if (Pos2Peer_idx(pos) != i) need_remote_peers[i] = false;
+        }
       }
       if (pmem_record_num_ != 0) {
         std::lock_guard<std::mutex> guard(mtx);
@@ -64,7 +66,9 @@ class MyStringHashMap {
             if (is_local(pos)) {
               ans.push_back(pos);
             } else {
-              need_remote_peers[Pos2Peer_idx(pos)] = true;
+              for(int j = 0; j < 3; j++) {
+                if (Pos2Peer_idx(pos) != j) need_remote_peers[j] = false;
+              }
             }
           }
         }
