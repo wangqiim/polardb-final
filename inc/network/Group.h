@@ -146,7 +146,7 @@ static Package clientRemoteGet(int32_t select_column,
       }
       pk_has_find_server = true;
     }
-    // if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     // 不需要检验ret,如果发送出错，读的时候也会出错，不会永远阻塞住。
     client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
   }
@@ -155,7 +155,7 @@ static Package clientRemoteGet(int32_t select_column,
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
-    // if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
+    if (where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size > 0 && where_column == Salary && is_use_remote_pk && recovery_cnt == 0 && need_remote_peers[i] == false) {
       spdlog::error("[clientRemoteGet] cache mismatch, i = {}, salary={}, need_remote_peers=[{}, {}, {}]",
@@ -196,6 +196,11 @@ static Package clientRemoteGet(int32_t select_column,
     }
     memcpy(result.data + local_data_len, package.data, remote_data_len);
     result.size += package.size;
+  }
+  if (result.size == 0 && where_column == Salary && is_use_remote_pk && recovery_cnt == 0) {
+    spdlog::error("[clientRemoteGet] cache mismatch, salary={}, need_remote_peers=[{}, {}, {}]", *(uint64_t *)(column_key), need_remote_peers[0],need_remote_peers[1],need_remote_peers[2]);
+    need_remote_peers[0] = need_remote_peers[1] = need_remote_peers[2] = true;
+    return clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
   }
   return result;
 }
