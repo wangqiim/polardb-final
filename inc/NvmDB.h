@@ -111,7 +111,7 @@ static void Put(const char *tuple, size_t len){
         spdlog::info("notify all write threads!");
         is_use_remote_pk = true;
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(300s);
+        std::this_thread::sleep_for(200s);
         finished_cv.notify_all();
       }
     }
