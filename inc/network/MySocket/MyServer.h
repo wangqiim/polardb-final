@@ -67,7 +67,7 @@ void *connect_client(void *arg) {
                 if (salary_ptr - buf == BUFSIZE) {
                     salary_ptr = buf;
                 }
-                size_len = read(ts->fd, salary_ptr + unprocessed_len, buf - (salary_ptr + unprocessed_len));
+                size_len = read(ts->fd, salary_ptr + unprocessed_len, (buf + BUFSIZE) - (salary_ptr + unprocessed_len)); // 尝试读满buf
                 unprocessed_len += size_len;
                 if (size_len <= 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
