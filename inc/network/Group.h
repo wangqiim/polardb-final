@@ -43,7 +43,7 @@ static void mustAddConnect(int tid) {
     int flag = s.find(":");
     ip = s.substr(0,flag);
     port = s.substr(flag + 1, s.length());
-    if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i) < 0) { // 可能节点被kill掉了，不用重试
+    if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i, RequestType::NONE) < 0) { // 可能节点被kill掉了，不用重试
       spdlog::warn("[mustAddConnect] tid: {} add read client connect fail, errno = {}", tid, errno);
     } else {
       spdlog::debug("[mustAddConnect] tid: {} add connect");
@@ -86,14 +86,14 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("Connect Server {}, ip: {}, port: {}", i, ip, port);
     for (int tid = 0; tid < 50; tid++) {
       while (true) { // 50 tid, 初始化read client
-        if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i) < 0) {
+        if (init_client_socket(read_clients, ip.c_str(), stoi(port), tid, i, RequestType::NONE) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
         } else {
           break;
         }
       }
       while (true) { // 50 tid, 初始化write client
-        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i) < 0) {
+        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i, RequestType::SEND_SALARY) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
         } else {
           break;
@@ -101,7 +101,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
       }
     }
     while (true) { // 初始化sync client
-      if (init_client_socket(sync_clients, ip.c_str(), stoi(port), SYNC_Init_Deinit_Tid, i) < 0) {
+      if (init_client_socket(sync_clients, ip.c_str(), stoi(port), SYNC_Init_Deinit_Tid, i, RequestType::NONE) < 0) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       } else {
         break;

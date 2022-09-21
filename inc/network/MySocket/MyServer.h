@@ -15,7 +15,7 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const uint32_t send_salary_page_size = 1 + salary_page_cnt * 8;
+const uint32_t send_salary_page_size = salary_page_cnt * 8;
 const uint32_t BUFSIZE = 200 * send_salary_page_size;
 
 static Package remoteGet(int32_t select_column,
@@ -57,26 +57,30 @@ void *connect_client(void *arg) {
             }
             continue;            
         } else if (request_type == RequestType::SEND_SALARY) {
+            if (size_len != sizeof(RequestType)) {// 接收一个requestType，确认连接类型。之后就不需要发requesttype了。
+                spdlog::error("[connect_client] read SEND_SALARY request_type, size_len = {}, errno = {}", size_len, errno);
+            }
+            char *salary_ptr = buf;
             uint32_t cache_replay_cnt = 0;
+            ssize_t unprocessed_len = 0; //读了以后，还未处理的长度
             while (true) {
-                if (size_len <= 0 || size_len % send_salary_page_size != 0) {
+                if (salary_ptr - buf == BUFSIZE) {
+                    salary_ptr = buf;
+                }
+                size_len = read(ts->fd, salary_ptr + unprocessed_len, buf - (salary_ptr + unprocessed_len));
+                unprocessed_len += size_len;
+                if (size_len <= 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                uint32_t salary_cnt = (size_len / send_salary_page_size);
-                for (uint32_t salary_package = 0; salary_package < salary_cnt; salary_package++) {
-                    char *salary_ptr = buf + salary_package * send_salary_page_size + 1;
-                    for(uint32_t i = 0; i < salary_page_cnt; i++) {
-                      insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *) (salary_ptr));
-                      salary_ptr += 8;
-                    }
-                    cache_replay_cnt += salary_page_cnt;
+                for (; unprocessed_len >= 8; salary_ptr += 8, unprocessed_len -= 8) {
+                    insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
+                    cache_replay_cnt++;
                 }
                 if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
                     finish_sync_cnt += PER_THREAD_MAX_WRITE;
                 }
-                size_len = read(ts->fd, buf, BUFSIZE);
             }
         }
         uint8_t selectColum = (uint8_t)request_type;

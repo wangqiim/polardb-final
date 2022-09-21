@@ -10,7 +10,7 @@ static CLIENTS_ARRAYS read_clients; // read时发起远程读的客户端, 初�
 static CLIENTS_ARRAYS write_clients; // write时同步给其他节点的客户端, 初始化时，初始化前50 tid对应的客户端,剩余的写线程来的时候，初始化
 static CLIENTS_ARRAYS sync_clients; // 发起同步的客户端，比如init,deinit. 初始化3个客户端用来同步init/deinit
 
-int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid, int server) {
+int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid, int server, RequestType request_type) {
   if ( (clients[server][tid] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     spdlog::error("Socket Create Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
     return -1;
@@ -33,6 +33,13 @@ int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid
     return -1;
   } else {
     spdlog::debug("[create_connect] Socket Connect Success, ip: {}, port: {}, tid: {}", ip, port, tid);
+    // 对于用来发送salary的连接。提前发送一个requestType，告诉服务器连接类型。之后就不需要发request_type了。
+    if (request_type == RequestType::SEND_SALARY) {
+      ssize_t send_bytes = send(write_clients[server][tid], &request_type, sizeof(RequestType), 0);
+      if (send_bytes != sizeof(RequestType)) {
+        spdlog::error("[init_client_socket] send request_type through write clients fail!, errno = {}", errno);
+      }
+    }
     return 0;
   }
   return 0;
@@ -113,11 +120,10 @@ int client_salary_send(char *salary, int tid, int server) {
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  const int need_send_size = sizeof(uint8_t) + salary_page_cnt * 8;
+  const int need_send_size = salary_page_cnt * 8;
   char send_buf[need_send_size];
-  *(uint8_t *)send_buf = uint8_t(RequestType::SEND_SALARY);
   for (uint32_t i = 0; i < salary_page_cnt; ++i) {
-    memcpy(send_buf + 1 + i * 8, salary + i * 16 + 8, 8);
+    memcpy(send_buf + i * 8, salary + i * 16 + 8, 8);
   }
   ssize_t send_bytes = send(write_clients[server][tid], send_buf, need_send_size, 0);
   if (send_bytes <= 0) {

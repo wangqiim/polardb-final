@@ -24,7 +24,8 @@ enum class RequestType : uint8_t {
     WHERE_SALARY,
     SYNC_INIT,
     SYNC_DEINIT,
-    SEND_SALARY
+    SEND_SALARY,
+    NONE
 };
 
 const int MAX_LISTEN_CONN = 512;
