@@ -122,6 +122,9 @@ static void my_server_run(const char *ip, int port) {
         spdlog::error("set socket Close Nagle  error");
     }
 
+  int nRecvBuf = 2000 * send_salary_page_size;
+  setsockopt(server_socket,SOL_SOCKET,SO_RCVBUF,(const char*)&nRecvBuf,sizeof(int));
+
     sockaddr_in addr, client;
     socklen_t len = sizeof(client);
 
