@@ -15,7 +15,8 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const int BUFSIZE = 16200;
+const uint32_t send_salary_page_size = 1 + salary_page_cnt * 8;
+const uint32_t BUFSIZE = 200 * send_salary_page_size;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -58,19 +59,19 @@ void *connect_client(void *arg) {
         } else if (request_type == RequestType::SEND_SALARY) {
             uint32_t cache_replay_cnt = 0;
             while (true) {
-                if (size_len <= 0 || size_len % 81 != 0) {
+                if (size_len <= 0 || size_len % send_salary_page_size != 0) {
                     spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                int salary_cnt = (size_len / 81);
-                for (int salary_package = 0; salary_package < salary_cnt; salary_package++) {
-                    char *salary_ptr = buf + salary_package * 81 + 1;
-                    for(int i = 0; i < 10; i++) {
+                uint32_t salary_cnt = (size_len / send_salary_page_size);
+                for (uint32_t salary_package = 0; salary_package < salary_cnt; salary_package++) {
+                    char *salary_ptr = buf + salary_package * send_salary_page_size + 1;
+                    for(uint32_t i = 0; i < salary_page_cnt; i++) {
                       insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *) (salary_ptr));
                       salary_ptr += 8;
                     }
-                    cache_replay_cnt += 10;
+                    cache_replay_cnt += salary_page_cnt;
                 }
                 if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
                     finish_sync_cnt += PER_THREAD_MAX_WRITE;

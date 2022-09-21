@@ -210,7 +210,7 @@ int main()
     struct timeval t1,t2;
     double timeuse;
     gettimeofday(&t1,NULL);
-//     test_write(ctx);
+     test_write(ctx);
     // engine_deinit(nullptr);
     // test_read(ctx);
 

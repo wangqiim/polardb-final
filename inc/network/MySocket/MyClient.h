@@ -111,10 +111,12 @@ int client_salary_send(char *salary, int tid, int server) {
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  const int need_send_size = sizeof(uint8_t) + 80;
-  char send_buf[81];
+  const int need_send_size = sizeof(uint8_t) + salary_page_cnt * 8;
+  char send_buf[need_send_size];
   *(uint8_t *)send_buf = uint8_t(RequestType::SEND_SALARY);
-  memcpy(send_buf + 1, salary, 80);
+  for (uint32_t i = 0; i < salary_page_cnt; ++i) {
+    memcpy(send_buf + 1 + i * 8, salary + i * 16 + 8, 8);
+  }
   ssize_t send_bytes = send(write_clients[server][tid], send_buf, need_send_size, 0);
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof

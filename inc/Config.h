@@ -33,6 +33,8 @@ bool is_use_remote_pk = false;
 
 uint64_t recovery_cnt = 0;
 
+uint32_t salary_page_cnt = 1;
+
 enum Column{Id=0,Userid,Name,Salary};
 
 // NvmStore.h
