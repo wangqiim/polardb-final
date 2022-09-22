@@ -164,7 +164,9 @@ static size_t Get(int32_t select_column,
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
         bool need_remote_peers[3] = {true, true, true}; // 目前只控制salary
-        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local, need_remote_peers);
+        static thread_local std::vector<uint32_t> posArray;
+        posArray.clear();
+        getPosFromKey(posArray, where_column, column_key, is_local, need_remote_peers);
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
