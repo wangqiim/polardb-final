@@ -158,7 +158,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
 //    return 0;
 //}
 
-static std::vector<uint32_t> getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
+static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
      // performance test中,每个节点的数据是固定的连续两亿条,
