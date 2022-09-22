@@ -118,16 +118,12 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
 }
 
 // 把本地写的salary广播给其他节点
-int client_salary_send(char *salary, int tid, int server) {
+int client_salary_send(char *salaries, int tid, int server) {
   if (write_clients[server][tid] == -1) {
     return -1;
   }
   const int need_send_size = salary_page_cnt * 8;
-  char send_buf[need_send_size];
-  for (uint32_t i = 0; i < salary_page_cnt; ++i) {
-    memcpy(send_buf + i * 8, salary + i * 16 + 8, 8);
-  }
-  ssize_t send_bytes = send(write_clients[server][tid], send_buf, need_send_size, 0);
+  ssize_t send_bytes = send(write_clients[server][tid], salaries, need_send_size, 0);
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof
       spdlog::debug("[client_salary_send] read eof!");

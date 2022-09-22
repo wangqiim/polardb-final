@@ -102,7 +102,7 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
 
 static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
   memcpy(MBM[tid].address + MBM[tid].offset, tuple, 8);
-  memcpy(MBM[tid].address + MBM[tid].offset + 8, tuple + 264, 8);
+  memcpy(MBM[tid].address + MBM[tid].offset + PER_THREAD_MAX_WRITE * 8, tuple + 264, 8);
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple + 8, 256);
   uint32_t pos = (PBM[tid].offset / PMEM_RECORD_SIZE) + 1;
   memcpy(MBM[tid].address - 4, &pos, 4);
@@ -127,7 +127,7 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
     return;
   }
   if (select_column == Salary) {
-    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE + 8, 8);
+    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE + 8 * PER_THREAD_MAX_WRITE, 8);
     return;    
   }
 }
