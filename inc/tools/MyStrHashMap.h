@@ -197,33 +197,6 @@ class MyUserIdsHashMap {
     uint64_t pmem_record_num_;
 };
 
-class MyString256HashMap {
-  public:
-  MyString256HashMap() {
-    hash_table = new MyStr256Head[hashSize];
-  }
-
-  ~MyString256HashMap() {
-    delete hash_table;
-  }
-
-  char * get(uint32_t key) {
-    return hash_table[key & (hashSize - 1)].data;
-  }
-
-  void insert(uint32_t key, const char * value) {
-    memcpy(hash_table[key & (hashSize - 1)].data, value, 256);
-  }
-
-  void stat() {
-    // std::cout << "recovery boom " << hash_boom << std::endl;
-  }
-
-  private:
-  MyStr256Head *hash_table;
-  const uint32_t hashSize = 1<<26;
-};
-
 class MyUInt64HashMap {
   public:
   MyUInt64HashMap() {
@@ -245,5 +218,5 @@ class MyUInt64HashMap {
 
   private:
   uint32_t *hash_table;
-  const uint32_t hashSize = 1<<31;
+  const uint32_t hashSize = 1<<30;
 };
