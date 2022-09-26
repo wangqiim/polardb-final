@@ -43,5 +43,5 @@ struct Package {
 };
 
 const uint32_t send_salary_page_size = salary_page_cnt * 8;
-const int NSendBuf = 200 * send_salary_page_size;
-const int NRecvBuf = 200 * send_salary_page_size;
+const int NSendBuf = 20 * send_salary_page_size;
+const int NRecvBuf = 20 * send_salary_page_size;
