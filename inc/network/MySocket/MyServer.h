@@ -15,7 +15,6 @@ std::string to_hex(unsigned char* data, int len) {
 }
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
-const uint32_t send_salary_page_size = salary_page_cnt * 8;
 const uint32_t BUFSIZE = 200 * send_salary_page_size;
 
 static Package remoteGet(int32_t select_column,
