@@ -21,6 +21,7 @@ static std::atomic<uint32_t> sk_local_hit_remote_hit(0);
 static std::atomic<uint32_t> sk_local_hit_remote_miss(0);
 static std::atomic<uint32_t> sk_local_miss_remote_hit(0);
 static std::atomic<uint32_t> sk_local_miss_remote_miss(0);
+static std::atomic<uint32_t> sk_remote_select[4] = {0, 0, 0, 0};
 
 void stat_log() {
   spdlog::info("Server local get pk {}", pk_local_count);
@@ -46,6 +47,9 @@ void stat_log() {
   spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
   spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
   spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
+  for (int i = 0; i < 4; i++) {
+    spdlog::info("[where sk] success remote select_column = {}, count = {}", i, sk_remote_select[i]);
+  }
   // sk.stat();
 }
 
@@ -219,6 +223,7 @@ static size_t Get(int32_t select_column,
           }
         } else {
           if (result.size > 0) {
+            sk_remote_select[select_column]++;
             sk_local_miss_remote_hit++;
           } else {
             sk_local_miss_remote_miss++;
