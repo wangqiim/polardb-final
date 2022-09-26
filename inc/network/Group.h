@@ -43,21 +43,20 @@ void *syncSalary(void *input) {
     is_send_end = 0;
     for (int tid = 0; tid < 50; tid++) {
       uint32_t current_offset = MBM[tid].offset;
-      if (current_offset - send_len[tid] >= salary_page_cnt * 8) {
+      if (send_len[tid] < current_offset) {
         for (int i = 0; i < PeerHostInfoNum; i++) {
-          client_salary_send(MBM[tid].address + send_len[tid], tid, i, salary_page_cnt * 8); // 忽视失败
+          client_salary_send(MBM[tid].address + send_len[tid], tid, i, current_offset - send_len[tid]); // 忽视失败
         }
-        send_count += salary_page_cnt;
-        send_len[tid] += salary_page_cnt * 8;
+        send_count += current_offset/8;
+        send_len[tid] = current_offset;
       } else {
         is_send_end++;
       }
     }
-    if (send_count == 2e8) break;
-    // if (is_send_end == 50 && send_count > 0) {
-    //   spdlog::info("[syncSalary] tid: sync salary success");
-    //   pthread_exit(NULL);
-    // }
+    if (is_send_end == 50 && send_count > 0) {
+      spdlog::info("[syncSalary] tid: sync salary success");
+      pthread_exit(NULL);
+    }
   }
   return nullptr;
 }
