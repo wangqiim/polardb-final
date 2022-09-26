@@ -41,3 +41,6 @@ struct Package {
   int32_t size = 0;
   char data[PACKAGE_DATA_SIZE];
 };
+
+const int NSendBuf = 200 * send_salary_page_size;
+const int NRecvBuf = 200 * send_salary_page_size;
