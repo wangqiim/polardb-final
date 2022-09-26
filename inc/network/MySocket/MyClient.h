@@ -117,11 +117,11 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
 }
 
 // 把本地写的salary广播给其他节点
-int client_salary_send(char *salaries, int tid, int server, int send_salary_len) {
+int client_salary_send(char *salaries, int tid, int server) {
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  const int need_send_size = send_salary_len;
+  const int need_send_size = salary_page_cnt * 8;
   ssize_t send_bytes = send(write_clients[server][tid], salaries, need_send_size, 0);
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof

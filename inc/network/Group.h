@@ -6,7 +6,6 @@
 #include "spdlog/spdlog.h"
 #include "./MySocket/MyClient.h"
 #include "./MySocket/MyServer.h"
-#include "./store/NvmStore.h"
 
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
@@ -32,32 +31,6 @@ void *runServer(void *input) {
   std::string ip = s.substr(0,index);
   std::string port = s.substr(index + 1, s.length());
   my_server_run(ip.c_str(), stoi(port));
-  return nullptr;
-}
-
-void *syncSalary(void *input) {
-  uint32_t send_len[50] = {0};
-  uint32_t is_send_end = 0;
-  uint32_t send_count = 0;
-  while (1) {
-    is_send_end = 0;
-    for (int tid = 0; tid < 50; tid++) {
-      uint32_t current_offset = MBM[tid].offset;
-      if (send_len[tid] < current_offset) {
-        for (int i = 0; i < PeerHostInfoNum; i++) {
-          client_salary_send(MBM[tid].address + send_len[tid], tid, i, current_offset - send_len[tid]); // 忽视失败
-        }
-        send_count += current_offset/8;
-        send_len[tid] = current_offset;
-      } else {
-        is_send_end++;
-      }
-    }
-    if (is_send_end == 50 && send_count > 0) {
-      spdlog::info("[syncSalary] tid: sync salary success");
-      pthread_exit(NULL);
-    }
-  }
   return nullptr;
 }
 
@@ -150,13 +123,6 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     }
   }
   std::this_thread::sleep_for(std::chrono::seconds(3));
-
-  pthread_t sync_salary_tid;
-  ret = pthread_create(&sync_salary_tid, NULL, syncSalary, NULL);
-  if (ret != 0) {
-    spdlog::error("[initGroup] sync salary pthread_create error, ret = {}", ret);
-  }
-  pthread_detach(sync_salary_tid);
 }
 
 // 1. 依次向3个节点发送请求(write)，发送完以后进入第二步
@@ -226,14 +192,14 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
-// void broadcast_salaries(char *salaries, uint8_t tid) {
-//   for (int i = 0; i < PeerHostInfoNum; i++) {
-//     client_salary_send(salaries, tid, i); // 忽视失败
-//   }
-//   // for (int i = 0; i < PeerHostInfoNum; i++) {
-//   //   client_salary_recv(tid, i); // 忽视失败
-//   // }
-// }
+void broadcast_salaries(char *salaries, uint8_t tid) {
+  for (int i = 0; i < PeerHostInfoNum; i++) {
+    client_salary_send(salaries, tid, i); // 忽视失败
+  }
+  // for (int i = 0; i < PeerHostInfoNum; i++) {
+  //   client_salary_recv(tid, i); // 忽视失败
+  // }
+}
 
 static void deInitGroup() {
   group_is_deinit.store(true);
