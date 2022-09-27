@@ -206,8 +206,15 @@ static size_t Get(int32_t select_column,
         memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
-        // 三个节点有一个命中缓存，就广播
-        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
+        bool is_find = false;
+        if (where_column == 3 && select_column == 0 && is_use_remote_pk) {
+           get_remote_id_from_salary(*(uint64_t *)column_key, result.data, is_find);
+        }
+        if (is_find) {
+          result.size = 1;
+        } else {
+          result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
+        }
       }
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;

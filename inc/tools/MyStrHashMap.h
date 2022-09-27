@@ -18,17 +18,16 @@ struct alignas(4) MyStrHead {
     uint32_t value = 0;
 };
 
-class MyStringHashMap {
+class MySalaryHashMap {
   public:
   // 高2位. 01,10,11分别对应3个peerid, 低30位对应id值(1-8亿) 高2位00对应本地写
   static uint32_t peer_idx2Pos(int peer_idx, uint32_t id) { return (((uint32_t(peer_idx) + 1) << 30) & 0xC0000000UL) | id; } 
   static uint32_t Pos2Id(uint32_t pos) { return pos & 0x3FFFFFFFUL; } // 低30位放id
   static uint32_t Pos2Peer_idx(uint32_t pos) { return ((pos & 0xC0000000UL) >> 30) - 1; }
-
   static bool is_local(uint32_t pos) { return (pos & 0xC0000000UL) == 0; } // 高2位是00
 
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
-  MyStringHashMap(uint32_t hashSize, std::string file_name) {
+    MySalaryHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
     hashSize_ = hashSize;
     pmem_record_num_ = 0;
@@ -43,9 +42,16 @@ class MyStringHashMap {
     pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
   }
 
-  ~MyStringHashMap() {
+  ~MySalaryHashMap() {
     delete hash_table;
   }
+
+  uint64_t get_id(uint64_t key) {
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    uint32_t pos = hash_table[bucket_idx].value - 1;
+    uint64_t id = Pos2Id(pos);
+    return id;
+    }
 
  void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
     uint32_t bucket_idx = key & (hashSize_ - 1);

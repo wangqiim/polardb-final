@@ -71,7 +71,7 @@ uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyUInt64HashMap pk;
 static MyUserIdsHashMap uk(1<<30, "uk");
-static MyStringHashMap sk(1<<30, "sk");
+static MySalaryHashMap sk(1<<30, "sk");
 // static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
 // static emhash7::HashMap<uint64_t, uint32_t> pk[HASH_MAP_COUNT];
@@ -211,5 +211,14 @@ static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, c
 
 static void insertRemoteSalaryToIndex(int peer_idx, uint32_t id, uint32_t salary) {
   spdlog::debug("[insertRemoteSalaryToIndex] insert peer_idx: {}, salary: {}", peer_idx, salary);
-  sk.insert(salary, MyStringHashMap::peer_idx2Pos(peer_idx, id));// 高2位. 01,10,11分别对应3个peerid, 低30位对应id值(1-8亿) 高2位00对应本地写
+  sk.insert(salary, MySalaryHashMap::peer_idx2Pos(peer_idx, id));// 高2位. 01,10,11分别对应3个peerid, 低30位对应id值(1-8亿) 高2位00对应本地写
+}
+
+static void get_remote_id_from_salary(uint64_t key, char *data, bool &is_find) {
+  uint64_t id = sk.get_id(key);
+  if (id == 0) {
+    return;
+  }
+  memcpy(data, &id, 8);
+  is_find = true;
 }
