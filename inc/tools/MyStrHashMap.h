@@ -20,10 +20,12 @@ struct alignas(4) MyStrHead {
 
 class MyStringHashMap {
   public:
+  // 高2位. 01,10,11分别对应3个peerid, 低30位对应id值(1-8亿) 高2位00对应本地写
+  static uint32_t peer_idx2Pos(int peer_idx, uint32_t id) { return (((uint32_t(peer_idx) + 1) << 30) & 0xC0000000UL) | id; } 
+  static uint32_t Pos2Id(uint32_t pos) { return pos & 0x3FFFFFFFUL; } // 低30位放id
+  static uint32_t Pos2Peer_idx(uint32_t pos) { return ((pos & 0xC0000000UL) >> 30) - 1; }
 
-  static uint32_t peer_idx2Pos(int peer_idx) { return uint32_t(peer_idx) | 0x80000000UL; }
-  static int Pos2Peer_idx(uint32_t pos) { return pos & 0x7FFFFFFFUL; }
-  static bool is_local(uint32_t pos) { return (pos & 0x80000000UL) == 0; }
+  static bool is_local(uint32_t pos) { return (pos & 0xC0000000UL) == 0; } // 高2位是00
 
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
   MyStringHashMap(uint32_t hashSize, std::string file_name) {
@@ -53,7 +55,7 @@ class MyStringHashMap {
       if (is_local(pos)) {
         ans.push_back(pos);
       } else {
-        for(int i = 0; i < 3; i++) {
+        for(uint32_t i = 0; i < 3; i++) {
           if (Pos2Peer_idx(pos) != i) need_remote_peers[i] = false;
         }
       }
@@ -66,7 +68,7 @@ class MyStringHashMap {
             if (is_local(pos)) {
               ans.push_back(pos);
             } else {
-              for(int j = 0; j < 3; j++) {
+              for(uint32_t j = 0; j < 3; j++) {
                 if (Pos2Peer_idx(pos) != j) need_remote_peers[j] = false;
               }
             }

@@ -22,7 +22,7 @@ static Package remoteGet(int32_t select_column,
 
 static bool serverSyncInit();
 static bool serverSyncDeinit();
-static void insertRemoteSalaryToIndex(int peer_idx, uint64_t salary);
+static void insertRemoteSalaryToIndex(int peer_idx, uint32_t id, uint32_t salary);
 
 void *connect_client(void *arg) {
     struct s_info *ts = (struct s_info *)arg;
@@ -74,7 +74,7 @@ void *connect_client(void *arg) {
                     pthread_exit(NULL);
                 }
                 for (; unprocessed_len >= 8; salary_ptr += 8, unprocessed_len -= 8) {
-                    insertRemoteSalaryToIndex(ts->peer_idx, *(uint64_t *)(salary_ptr));
+                    insertRemoteSalaryToIndex(ts->peer_idx, *(uint32_t *)(salary_ptr), *(uint32_t *)(salary_ptr + 4)); // 前4字节是id,后4字节是salary
                     cache_replay_cnt++;
                 }
                 if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
