@@ -209,7 +209,7 @@ static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, c
   return;
 }
 
-static void insertRemoteSalaryToIndex(int peer_idx, uint64_t salary) {
+static void insertRemoteSalaryToIndex(int peer_idx, uint32_t id, uint32_t salary) {
   spdlog::debug("[insertRemoteSalaryToIndex] insert peer_idx: {}, salary: {}", peer_idx, salary);
-  sk.insert(salary, MyStringHashMap::peer_idx2Pos(peer_idx)); // 将pos的最高位置为1，用来区分本地写和远端写
+  sk.insert(salary, MyStringHashMap::peer_idx2Pos(peer_idx, id));// 高2位. 01,10,11分别对应3个peerid, 低30位对应id值(1-8亿) 高2位00对应本地写
 }
