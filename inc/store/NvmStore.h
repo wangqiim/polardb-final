@@ -108,14 +108,14 @@ static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, ui
   memcpy(MBM[tid].address - 4, &pos, 4);
   pmem_drain();
   PBM[tid].offset += PMEM_RECORD_SIZE;
-  MBM[tid].offset += 8; // sizeof(ID)
+  MBM[tid].offset += MEM_RECORD_SIZE;
 }
 
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   uint8_t tid = pos / PER_THREAD_MAX_WRITE;
   uint64_t offset = (pos % PER_THREAD_MAX_WRITE);
   if (select_column == Id) {
-    memcpy(res, MBM[tid].address + offset * 8, 8);
+    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE, 8);
     return;
   }
   if (select_column == Userid) {
@@ -127,7 +127,7 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
     return;
   }
   if (select_column == Salary) {
-    memcpy(res, MBM[tid].address + offset * 8 + 8 * PER_THREAD_MAX_WRITE, 8);
+    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE + 8 * PER_THREAD_MAX_WRITE, 8);
     return;    
   }
 }
@@ -144,13 +144,13 @@ static void recovery() {;
     uint32_t commit_cnt = *(uint32_t *)(MBM[i].address - 4);
     for (uint64_t j = 0; j < commit_cnt; j++) {
       unsigned char tuple[RECORD_SIZE];
-      memcpy(tuple, MBM[i].address + MBM[i].offset, 8); // id
-      memcpy(tuple + 8, PBM[i].address + PBM[i].offset, 128); // user_id
-      memcpy(tuple + 136, PBM[i].address + PBM[i].offset + 128, 128); // name
-      memcpy(tuple + 264, MBM[i].address + MBM[i].offset + PER_THREAD_MAX_WRITE * 8, 8); // salary
+      memcpy(tuple, MBM[i].address + MBM[i].offset, 8);
+      memcpy(tuple + 8, PBM[i].address + PBM[i].offset, 128);
+      memcpy(tuple + 136, PBM[i].address + PBM[i].offset + 128, 128);
+      memcpy(tuple + 264, MBM[i].address + MBM[i].offset + 8, 8);
       insert((const char *)tuple, RECORD_SIZE, i);
       PBM[i].offset += PMEM_RECORD_SIZE;
-      MBM[i].offset += 8;
+      MBM[i].offset += MEM_RECORD_SIZE;
     }
     recovery_cnt += PBM[i].offset/PMEM_RECORD_SIZE;
   }
