@@ -7,7 +7,7 @@
 const uint64_t RECORD_SIZE = 272;
 
 const uint64_t PMEM_RECORD_SIZE = 256;
-const uint64_t MEM_RECORD_SIZE = 16;
+const uint64_t MEM_RECORD_SIZE = 12;
 
 //表空间大小
 const uint64_t TABLE_SIZE = 50000005;
@@ -40,6 +40,6 @@ enum Column{Id=0,Userid,Name,Salary};
 // NvmStore.h
 static char *GetUserIdByPos(uint32_t pos);
  
-//#define debug_db
+#define debug_db
 
 #endif
