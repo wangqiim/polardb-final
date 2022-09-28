@@ -34,7 +34,7 @@ class MySalaryHashMap {
     uint64_t mmap_size = TOTAL_WRITE_NUM * sizeof(kv_pair);
     int is_pmem;
     size_t mapped_len;
-    file_name = "/mnt/pmem0/pmemData/" + file_name;
+    file_name = "/mnt/aep/" + file_name;
     if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
                                                   0666, &mapped_len, &is_pmem)) == NULL ) {
       spdlog::error("[MyStringHashMap] pmem_map_file");
@@ -147,7 +147,7 @@ class MyUserIdsHashMap {
     uint64_t mmap_size = TOTAL_WRITE_NUM * 4;
     int is_pmem;
     size_t mapped_len;
-    file_name = "/mnt/pmem0/pmemData/" + file_name;
+    file_name = "/mnt/aep/" + file_name;
     if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
                                                   0666, &mapped_len, &is_pmem)) == NULL ) {
       spdlog::error("[MyStringHashMap] pmem_map_file");
