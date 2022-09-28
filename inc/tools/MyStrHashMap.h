@@ -132,7 +132,7 @@ class MySalaryHashMap {
   private:
     MyStrHead *hash_table;
     uint32_t hashSize_ = 1<<30;
-
+    
     std::mutex mtx;
     char *pmem_addr_;
     uint64_t pmem_record_num_;

@@ -22,7 +22,7 @@ public:
 struct PmemBlockMeta {
   char *address = nullptr;
   uint64_t offset = 0;
-}PBM[PMEM_FILE_COUNT], PIDM[PMEM_FILE_COUNT];
+}PBM[PMEM_FILE_COUNT];
 
 struct MemBlockMeta {
   char *address = nullptr;
@@ -43,7 +43,7 @@ static void Store_Sync() {
   }
 }
 
-static void create_metal(std::string path, int i, bool is_pmem, bool is_id) {
+static void create_metal(std::string path, int i, bool is_pmem) {
     if (is_pmem) {
         path = path + "pmem" + std::to_string(i) + ".pool";
     } else {
@@ -68,23 +68,14 @@ static void create_metal(std::string path, int i, bool is_pmem, bool is_id) {
         }
     }
     if (is_pmem) {
-      int is_pmem;
-      size_t mapped_len;
-      if (is_id) {
-        mmap_size = 8 * PER_THREAD_MAX_WRITE;
-        /* create a pmem file and memory map it */
-        if ((PIDM[i].address = (char *) pmem_map_file(path.c_str(), mmap_size, PMEM_FILE_CREATE,
-                                                     0666, &mapped_len, &is_pmem)) == NULL) {
-          spdlog::error("pmem_map_file");
-        }
-      } else {
         mmap_size = PMEM_RECORD_SIZE * PER_THREAD_MAX_WRITE;
+        int is_pmem;
+        size_t mapped_len;
         /* create a pmem file and memory map it */
-        if ((PBM[i].address = (char *) pmem_map_file(path.c_str(), mmap_size, PMEM_FILE_CREATE,
-                                                     0666, &mapped_len, &is_pmem)) == NULL) {
+        if ( (PBM[i].address = (char *)pmem_map_file(path.c_str(), mmap_size, PMEM_FILE_CREATE,
+                                                     0666, &mapped_len, &is_pmem)) == NULL ) {
           spdlog::error("pmem_map_file");
         }
-      }
     } else {
       MBM[i].address = (char *)mmap(0, mmap_size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
       MBM[i].address += COMMIT_FLAG_SIZE;
@@ -102,41 +93,29 @@ static void create_metal(std::string path, int i, bool is_pmem, bool is_id) {
 static void initStore(const char* aep_dir,  const char* disk_dir) {
   spdlog::info("get sys pmem dir: {} ssd dir: {}", aep_dir, disk_dir);
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
-    create_metal(std::string(aep_dir), i, true, false);
-    create_metal(std::string(disk_dir), i, false, false);
-    create_metal(std::string(aep_dir) + "id", i, true, true);
+      create_metal(std::string(aep_dir), i, true);
+      create_metal(std::string(disk_dir), i, false);
   }
   recovery();
   spdlog::info("Store Init End");
 }
 
 static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
-  if (*(uint64_t *)tuple < 8e8) {
-    memcpy(MBM[tid].address + MBM[tid].offset, tuple, 4);
-  } else {
-    pmem_memcpy_nodrain(PIDM[tid].address + PIDM[tid].offset, tuple, 8);
-  }
-  memcpy(MBM[tid].address + MBM[tid].offset + 4, tuple + 264, 8);
+  memcpy(MBM[tid].address + MBM[tid].offset, tuple, 8);
+  memcpy(MBM[tid].address + MBM[tid].offset + 8, tuple + 264, 8);
   pmem_memcpy_nodrain(PBM[tid].address + PBM[tid].offset, tuple + 8, 256);
   uint32_t pos = (PBM[tid].offset / PMEM_RECORD_SIZE) + 1;
   memcpy(MBM[tid].address - 4, &pos, 4);
   pmem_drain();
   PBM[tid].offset += PMEM_RECORD_SIZE;
   MBM[tid].offset += MEM_RECORD_SIZE;
-  PIDM[tid].offset += 8;
 }
 
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
   uint8_t tid = pos / PER_THREAD_MAX_WRITE;
   uint64_t offset = (pos % PER_THREAD_MAX_WRITE);
   if (select_column == Id) {
-    uint64_t id = *(uint32_t *)(MBM[tid].address + offset * MEM_RECORD_SIZE);
-    if (id > 0) {
-      memcpy(res, &id, 8);
-      return;
-    }
-    id = *(uint64_t *)(PIDM[tid].address + offset * 8);
-    memcpy(res, &id, 8);
+    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE, 8);
     return;
   }
   if (select_column == Userid) {
@@ -148,7 +127,7 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
     return;
   }
   if (select_column == Salary) {
-    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE + 4, 8);
+    memcpy(res, MBM[tid].address + offset * MEM_RECORD_SIZE + 8, 8);
     return;    
   }
 }
@@ -165,22 +144,13 @@ static void recovery() {;
     uint32_t commit_cnt = *(uint32_t *)(MBM[i].address - 4);
     for (uint64_t j = 0; j < commit_cnt; j++) {
       unsigned char tuple[RECORD_SIZE];
-
-      uint64_t id = *(uint32_t *)(MBM[i].address + MBM[i].offset);
-      if (id > 0) {
-        memcpy(tuple, &id, 8);
-      } else {
-        id = *(uint64_t *)(PIDM[i].address + PIDM[i].offset);
-        memcpy(tuple, &id, 8);
-      }
-
+      memcpy(tuple, MBM[i].address + MBM[i].offset, 8);
       memcpy(tuple + 8, PBM[i].address + PBM[i].offset, 128);
       memcpy(tuple + 136, PBM[i].address + PBM[i].offset + 128, 128);
-      memcpy(tuple + 264, MBM[i].address + MBM[i].offset + 4, 8);
+      memcpy(tuple + 264, MBM[i].address + MBM[i].offset + 8, 8);
       insert((const char *)tuple, RECORD_SIZE, i);
       PBM[i].offset += PMEM_RECORD_SIZE;
       MBM[i].offset += MEM_RECORD_SIZE;
-      PIDM[i].offset += 8;
     }
     recovery_cnt += PBM[i].offset/PMEM_RECORD_SIZE;
   }

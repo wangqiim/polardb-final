@@ -7,7 +7,7 @@
 const uint64_t RECORD_SIZE = 272;
 
 const uint64_t PMEM_RECORD_SIZE = 256;
-const uint64_t MEM_RECORD_SIZE = 12;
+const uint64_t MEM_RECORD_SIZE = 16;
 
 //表空间大小
 const uint64_t TABLE_SIZE = 50000005;

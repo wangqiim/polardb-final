@@ -100,8 +100,8 @@ void* thread_read(void* ctx)
 bool test_is_ok(void *ctx) {
     TestUser user;
     char res[2000*128];
-    user.id = 4178232;
-    user.salary = 4178232;
+    user.id = 340000;
+    user.salary = 340001;
     memcpy(&user.name,"hrh\n0000\nqwer",14); 
     int8_t user_id_int[128] = {33,74,26,47,77,91,7,8,79,65,18,51,5,16,8,9,59,15,17,23,66,8,85,4,7,27,15,20,54,4,55,20,28,61,77,14,33,8,15,76,13,24,23,12,3,34,95,31,40,1,101,1,15,23,5,29,6,12,28,11,42,22,6,1,72,10,8,20,59,35,2,17,79,11,25,40,45,9,6,10,75,24,34,18,32,15,54,101,5,42,42,2,9,41,74,14,6,51,11,86,5,21,75,11,62,5,22,17,19,45,56,1,48,45,96,25,7,3,8,86,43,22,74,13,37,34,110,0};
     for(int i = 0; i < 128; i++) user.user_id[i] = user_id_int[i];
@@ -206,11 +206,11 @@ int main()
 {
     const char *myIp = "127.0.0.1:9000";
     const char *server[3] = {"127.0.0.1:9000","127.0.0.1:9000", "127.0.0.1:9000"};
-    void* ctx = engine_init(myIp, server, 0, "/mnt/pmem0/pmemData/", "./");
+    void* ctx = engine_init(myIp, server, 3, "/mnt/pmem0/pmemData/", "./");
     struct timeval t1,t2;
     double timeuse;
     gettimeofday(&t1,NULL);
-//     test_write(ctx);
+     test_write(ctx);
     // engine_deinit(nullptr);
     // test_read(ctx);
 
