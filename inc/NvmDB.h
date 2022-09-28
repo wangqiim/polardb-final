@@ -207,13 +207,13 @@ static size_t Get(int32_t select_column,
       if (where_column == 3) sk_remote_count++;
 #endif
       Package result;
+      bool is_find = false;
       if (where_column == 1) {
         char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
         memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
-        bool is_find = false;
         if (where_column == 3 && select_column == 0 && is_use_remote_pk) {
            get_remote_id_from_salary(*(uint64_t *)column_key, result.data, is_find);
         }
