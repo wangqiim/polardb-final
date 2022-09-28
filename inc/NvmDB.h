@@ -96,7 +96,7 @@ static void Put(const char *tuple, size_t len){
     }
 //    if(write_count % 100000 == 0)
 //      spdlog::info("[Put] local write {}", write_count);
-    if (write_count == 100000) is_use_remote_pk = true;
+    if (write_count == 200000) is_use_remote_pk = true;
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
       if (++finished_write_thread_cnt != 50) {
