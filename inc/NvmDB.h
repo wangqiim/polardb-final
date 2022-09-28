@@ -23,6 +23,8 @@ static std::atomic<uint32_t> sk_local_miss_remote_hit(0);
 static std::atomic<uint32_t> sk_local_miss_remote_miss(0);
 static std::atomic<uint32_t> sk_remote_select[4] = {0, 0, 0, 0};
 
+static uint32_t sk_broadcast_3_peer_count[MAX_Client_Num];
+
 void stat_log() {
   spdlog::info("Server local get pk {}", pk_local_count);
   spdlog::info("Server local get uk {}", uk_local_count);
@@ -50,6 +52,11 @@ void stat_log() {
   for (int i = 0; i < 4; i++) {
     spdlog::info("[where sk] success remote select_column = {}, count = {}", i, sk_remote_select[i]);
   }
+  uint64_t total_sk_broadcast_3_peers_count = 0;
+  for (int tid = 0; tid < MAX_Client_Num; tid++) {
+    total_sk_broadcast_3_peers_count += sk_broadcast_3_peer_count[tid];
+  }
+  spdlog::info("total_sk_broadcast_3_peers_count = {}", total_sk_broadcast_3_peers_count);
   // sk.stat();
 }
 
@@ -213,6 +220,11 @@ static size_t Get(int32_t select_column,
         if (is_find) {
           result.size = 1;
         } else {
+#ifdef debug_db
+          if (where_column == Salary && need_remote_peers[0] && need_remote_peers[1] && need_remote_peers[2]) {
+            sk_broadcast_3_peer_count[tid]++;
+          }
+#endif
           result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
         }
       }
