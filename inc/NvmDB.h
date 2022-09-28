@@ -92,7 +92,7 @@ static void Put(const char *tuple, size_t len){
     
     spdlog::debug("[Put] local write salary: {}", *(uint64_t *)(tuple + 264));
     if(write_count % salary_page_cnt == 0) {
-      broadcast_salary(MBM[tid].address + (write_count - salary_page_cnt) * 16, tid);
+      broadcast_salary(MBM[tid].address + (write_count - salary_page_cnt) * MEM_RECORD_SIZE, tid);
     }
 //    if(write_count % 100000 == 0)
 //      spdlog::info("[Put] local write {}", write_count);
