@@ -78,7 +78,7 @@ void *connect_client(void *arg) {
                   uint32_t id = *(uint32_t *)(salary_ptr);
                   insertRemoteSalaryToIndex(ts->peer_idx, id, *(uint32_t *)(salary_ptr + 4)); // 前4字节是id,后4字节是salary
                   insertRemoteSalaryToPK(id, *(uint64_t *)(salary_ptr + 4));
-                    cache_replay_cnt++;
+                  cache_replay_cnt++;
                 }
                 if (cache_replay_cnt == PER_THREAD_MAX_WRITE) {
                     finish_sync_cnt += PER_THREAD_MAX_WRITE;
