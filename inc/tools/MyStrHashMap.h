@@ -218,6 +218,7 @@ class MyUInt64HashMap {
 
   ~MyUInt64HashMap() {
     delete hash_table;
+    delete salary_table;
   }
   //todo 缺少冲突管理
   uint32_t get(uint64_t key) {
@@ -230,7 +231,10 @@ class MyUInt64HashMap {
 
   void insert_salary(uint32_t key, uint64_t salary) {
     if (key > 0) {
-      salary_table[key & (hashSize - 1)] = salary;
+      uint32_t bucket_idx = key & (hashSize - 1);
+      if (salary_table[bucket_idx] == 0) {
+        salary_table[bucket_idx] = salary;
+      }
     }
   }
 
