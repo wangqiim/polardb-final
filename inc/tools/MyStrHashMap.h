@@ -212,6 +212,8 @@ class MyUInt64HashMap {
   MyUInt64HashMap() {
     hash_table = new uint32_t[hashSize];
     memset(hash_table, 0, sizeof(uint32_t) * hashSize);
+    salary_table = new uint64_t [hashSize];
+    memset(salary_table, 0, sizeof(uint64_t) * hashSize);
   }
 
   ~MyUInt64HashMap() {
@@ -226,7 +228,18 @@ class MyUInt64HashMap {
     hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0 
   }
 
+  void insert_salary(uint32_t key, uint64_t salary) {
+    if (key > 0) {
+      salary_table[key & (hashSize - 1)] = salary;
+    }
+  }
+
+  uint64_t get_salary(uint64_t key) {
+    return salary_table[key & (hashSize - 1)];
+  }
+
   private:
   uint32_t *hash_table;
+  uint64_t *salary_table;
   const uint32_t hashSize = 1<<30;
 };
