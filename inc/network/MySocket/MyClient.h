@@ -123,11 +123,10 @@ int client_salary_send(char *salary, int tid, int server) {
   }
   const int need_send_size = salary_page_cnt * 12;
   char send_buf[need_send_size];
-//  for (uint32_t i = 0; i < salary_page_cnt; ++i) {
-//    memcpy(send_buf + i * 8, salary + i * MEM_RECORD_SIZE, 4); // 前4字节放id，后4字节放salary
-//    memcpy(send_buf + i * 8 + 4, salary + i * MEM_RECORD_SIZE + 4, 4); // 前4字节放id，后4字节放salary
-//  }
-  memcpy(send_buf, salary, need_send_size);
+  for (uint32_t i = 0; i < salary_page_cnt; ++i) {
+    memcpy(send_buf + i * 12, salary + i * MEM_RECORD_SIZE, 4); // 前4字节放id，后8字节放salary
+    memcpy(send_buf + i * 12 + 4, salary + i * MEM_RECORD_SIZE + 4, 8); // 前4字节放id，后8字节放salary
+  }
   ssize_t send_bytes = send(write_clients[server][tid], send_buf, need_send_size, 0);
   if (send_bytes <= 0) {
     if (send_bytes == 0) { // 远端关闭 eof
