@@ -228,10 +228,10 @@ static void get_remote_id_from_salary(uint64_t key, char *data, bool &is_find) {
 }
 
 static void get_remote_salary_from_id(uint64_t key, char *data, bool &is_find) {
-  uint32_t pos = pk.get(key);
-  if (pos > 0) { //表示是本地数据
-    return;
-  }
+//  uint32_t pos = pk.get(key);
+//  if (pos > 0) { //表示是本地数据
+//    return;
+//  }
   uint64_t salary = pk.get_salary(key);
   if (salary == 0) {
     return;
