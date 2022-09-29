@@ -73,7 +73,7 @@ void *connect_client(void *arg) {
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                for (; unprocessed_len >= 8; salary_ptr += 8, unprocessed_len -= 8) {
+                for (; unprocessed_len >= MEM_RECORD_SIZE; salary_ptr += MEM_RECORD_SIZE, unprocessed_len -= MEM_RECORD_SIZE) {
                     insertRemoteSalaryToIndex(ts->peer_idx, *(uint32_t *)(salary_ptr), *(uint32_t *)(salary_ptr + 4)); // 前4字节是id,后4字节是salary
                     cache_replay_cnt++;
                 }
