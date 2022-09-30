@@ -7,6 +7,7 @@
 #include "spdlog/spdlog.h"
 #include <chrono>
 #include <thread>
+#include <xmmintrin.h>
 
 #ifdef debug_db
 // 等价于客户端read的调用次数
@@ -79,6 +80,9 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len){
     static thread_local uint8_t tid = putTid++;
+
+    _mm_prefetch(tuple, _MM_HINT_T0);
+
     if (tid >= PMEM_FILE_COUNT) {
       spdlog::error("[Put] tid overflow, current tid = {}", tid);
     }
