@@ -52,8 +52,7 @@ class MySalaryHashMap {
     uint32_t pos = hash_table[bucket_idx].value - 1;
     uint64_t id = Pos2Id(pos);
     return id;
-
-    }
+  }
 
  void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
     uint32_t bucket_idx = key & (hashSize_ - 1);
