@@ -175,29 +175,34 @@ static size_t Get(int32_t select_column,
 #endif
     // 3. 尝试从本地读
     size_t local_get_count = 0;
-//    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
-//        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
-//    } else {
         bool need_remote_peers[3] = {true, true, true}; // 目前只控制salary
         static thread_local std::vector<uint32_t> posArray;
         posArray.clear();
         getPosFromKey(posArray, where_column, column_key, is_local, need_remote_peers);
+#ifdef debug_db
         uint32_t result_bytes = 0;
+#endif
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
                 readColumFromPos(select_column, pos, res);
                 if (select_column == Id || select_column == Salary) {
+#ifdef debug_db
                     result_bytes += 8;
+#endif
                     res = (char *) res + 8;
                 }
                 if (select_column == Userid || select_column == Name) {
+#ifdef debug_db
                     result_bytes += 128;
+#endif
                     res = (char *) res + 128;
                 }
+#ifdef debug_db
                 if (result_bytes >= PACKAGE_DATA_SIZE) {
                     spdlog::error("result overflow!!!!!!");
                     exit(1);
                 }
+#endif
             }
             if (where_column != Salary || is_use_remote_pk) return posArray.size();
         }
