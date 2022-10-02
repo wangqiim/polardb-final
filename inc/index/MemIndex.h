@@ -166,7 +166,7 @@ static bool getPosOrValueFromKey(std::vector<uint32_t> &result, void *res, int32
     uint32_t pos = pk.get(key);
     if (pos > 0) {
       result.push_back(pos - 1);
-    } else if (select_colum == Salary){
+    } else if (is_use_remote_pk && select_colum == Salary){
       uint64_t salary = pk.get_salary(key);
       if (salary > 0) {
         memcpy(res, &salary, 8);
