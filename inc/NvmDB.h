@@ -186,7 +186,7 @@ static size_t Get(int32_t select_column,
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
                 readColumFromPos(select_column, pos, res);
-              if (where_column != Salary) return 1;
+              if (where_column != Salary || is_use_remote_pk) return 1;
                 if (select_column == Id || select_column == Salary) {
                     result_bytes += 8;
                     res = (char *) res + 8;
