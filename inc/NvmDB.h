@@ -185,20 +185,20 @@ static size_t Get(int32_t select_column,
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
-              readColumFromPos(select_column, pos, res);
+                readColumFromPos(select_column, pos, res);
               if (where_column != Salary) return 1;
-              if (select_column == Id || select_column == Salary) {
-                result_bytes += 8;
-                res = (char *) res + 8;
-              }
-              if (select_column == Userid || select_column == Name) {
-                result_bytes += 128;
-                res = (char *) res + 128;
-              }
-              if (result_bytes >= PACKAGE_DATA_SIZE) {
-                spdlog::error("result overflow!!!!!!");
-                exit(1);
-              }
+                if (select_column == Id || select_column == Salary) {
+                    result_bytes += 8;
+                    res = (char *) res + 8;
+                }
+                if (select_column == Userid || select_column == Name) {
+                    result_bytes += 128;
+                    res = (char *) res + 128;
+                }
+                if (result_bytes >= PACKAGE_DATA_SIZE) {
+                    spdlog::error("result overflow!!!!!!");
+                    exit(1);
+                }
             }
             if (where_column != Salary || is_use_remote_pk) return posArray.size();
         }
@@ -213,8 +213,10 @@ static size_t Get(int32_t select_column,
 #endif
       Package result;
       if (where_column == 1) {
+        char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
-        result = clientRemoteGet(select_column, where_column, &uid.hashCode, 8, tid, need_remote_peers);
+        memcpy(hash_colum_key, &uid.hashCode, 8);
+        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
         bool is_find = false;
         if (is_use_remote_pk && where_column == 3 && select_column == 0) {
