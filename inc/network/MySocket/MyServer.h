@@ -90,7 +90,7 @@ void *connect_client(void *arg) {
         char *column_key = buf + 2;
 
         ssize_t column_key_len = 8;
-        if (whereColum == Userid) column_key_len = 4;
+        if (whereColum != Salary) column_key_len = 4;
         spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
 
         if (size_len != 2 + column_key_len) {

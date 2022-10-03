@@ -221,11 +221,11 @@ class MyUInt64HashMap {
     delete salary_table;
   }
   //todo 缺少冲突管理
-  uint32_t get(uint64_t key) {
+  uint32_t get(uint32_t key) {
     return hash_table[key & (hashSize - 1)]; //如果返回值是 0,表示是空的
   }
   //todo 缺少冲突管理
-  void insert(uint64_t key, uint32_t value) {
+  void insert(uint32_t key, uint32_t value) {
     hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0 
   }
 
@@ -238,7 +238,7 @@ class MyUInt64HashMap {
     }
   }
 
-  uint64_t get_salary(uint64_t key) {
+  uint64_t get_salary(uint32_t key) {
     return salary_table[key & (hashSize - 1)];
   }
 

@@ -102,7 +102,7 @@ static void initIndex() {
 // 2. write插入数据时调用
 static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
-    uint64_t id = *(uint64_t *)tuple;
+    uint32_t id = *(uint32_t *)tuple;
     uint32_t uk_hash = blizardhashfn(tuple + 8);
     uint64_t salary = *(uint64_t *)(tuple + 264);
 
@@ -160,7 +160,7 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
 
 static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
   if (where_column == Id) {
-    uint64_t key = *(uint64_t *)column_key;
+      uint32_t key = *(uint32_t *)column_key;
      // performance test中,每个节点的数据是固定的连续两亿条,
      // 比如[0,2e8-1],[2e8, 4e8-1],[4e8, 6e8-1],[6e8, 8e8-1]
     if (key < local_min_pk || key > local_max_pk) return;
