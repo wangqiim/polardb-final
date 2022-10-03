@@ -132,7 +132,7 @@ static Package clientRemoteGet(int32_t select_column,
   //每个线程自己维护remote_server
   static thread_local uint8_t remote_pk_in_client[4] = {0,0,0,0};
   // 1. broadcast phrase1: send
-  uint64_t id_to_server = (*(uint64_t *)column_key) / 200000000;
+  uint32_t id_to_server = (*(uint32_t *)column_key) / 200000000;
   bool pk_has_find_server = false;
   for (int i = 0; i < PeerHostInfoNum; i++) {
     if (where_column == 0 && is_use_remote_pk && id_to_server < 4 && remote_pk_in_client[id_to_server] > 0) {
