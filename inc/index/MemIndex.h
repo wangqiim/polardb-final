@@ -227,7 +227,7 @@ static void get_remote_id_from_salary(uint64_t key, char *data, bool &is_find) {
   is_find = true;
 }
 
-static void get_remote_salary_from_id(uint64_t key, char *data, bool &is_find) {
+static void get_remote_salary_from_id(uint32_t key, char *data, bool &is_find) {
   uint32_t pos = pk.get(key);
   if (pos > 0) { //表示是本地数据
     return;
