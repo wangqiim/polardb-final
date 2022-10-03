@@ -233,11 +233,8 @@ static size_t Get(int32_t select_column,
             sk_broadcast_3_peer_count[tid]++;
           }
 #endif
-          if(where_column == Id) {
-              result = clientRemoteGet(select_column, where_column, column_key, 4, tid, need_remote_peers);
-          } else {
-              result = clientRemoteGet(select_column, where_column, column_key, 8, tid, need_remote_peers);
-          }
+          if(where_column == Id) column_key_len = 4;
+          result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
         }
       }
       int dataSize = 0;
