@@ -26,6 +26,11 @@ static std::atomic<uint32_t> sk_remote_select[4] = {0, 0, 0, 0};
 
 static uint32_t sk_broadcast_3_peer_count[MAX_Client_Num];
 
+const int dist_buckets_cnt = 200;
+const int dist_buckets_elem_range = uint32_t(2e8) / dist_buckets_cnt;
+static std::atomic<uint32_t> local_get_dist[dist_buckets_cnt];
+static std::atomic<uint32_t> remote_get_dist[dist_buckets_cnt];
+
 void stat_log() {
   spdlog::info("Server local get pk {}", pk_local_count);
   spdlog::info("Server local get uk {}", uk_local_count);
@@ -58,6 +63,14 @@ void stat_log() {
     total_sk_broadcast_3_peers_count += sk_broadcast_3_peer_count[tid];
   }
   spdlog::info("total_sk_broadcast_3_peers_count = {}", total_sk_broadcast_3_peers_count);
+
+  // spdlog::info("-------------local get distribution-------------------"); // don't care this
+  spdlog::info("-------------remote get distribution-------------------");
+  std::string remote_dist_str;
+  for (int i = 0; i < dist_buckets_cnt; i++) {
+    remote_dist_str += std::to_string(i) + ": " + std::to_string(remote_get_dist[i]) + ", ";
+  }
+  spdlog::info("distribution_bucket_cnt = {}, dist_buckets_elem_range = {}, (idx, count) = {}", dist_buckets_cnt, dist_buckets_elem_range, remote_dist_str);
   // sk.stat();
 }
 
@@ -127,7 +140,7 @@ static void Put(const char *tuple, size_t len){
         //   std::this_thread::sleep_for(10ms);
         // }
         // spdlog::info("salary cache replay done!");
-        is_use_remote_pk = true;
+        // is_use_remote_pk = true;
         finished_cv.notify_all();
       }
     }
@@ -184,6 +197,18 @@ static size_t Get(int32_t select_column,
         getPosFromKey(posArray, where_column, column_key, is_local, need_remote_peers);
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
+          #ifdef debug_db
+          uint64_t dist_id;
+          readColumFromPos(Id, posArray[0], &dist_id);
+          dist_id = (dist_id - 1) % uint32_t(2e8); // 将各个节点的id 偏移修正一下
+          if (dist_id >= 0) { // 防正确性阶段崩
+            if (is_local) {
+              local_get_dist[dist_id / dist_buckets_elem_range]++;
+            } else {
+              remote_get_dist[dist_id / dist_buckets_elem_range]++;
+            }
+          }
+          #endif
             for (uint32_t pos: posArray) {
                 readColumFromPos(select_column, pos, res);
               if (where_column != Salary) return 1;
