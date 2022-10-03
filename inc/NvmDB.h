@@ -223,7 +223,7 @@ static size_t Get(int32_t select_column,
            get_remote_id_from_salary(*(uint64_t *)column_key, result.data, is_find);
         }
         if (is_use_remote_pk && where_column == 0 && select_column == 3) {
-          get_remote_salary_from_id(*(uint32_t *)column_key, result.data, is_find);
+          get_remote_salary_from_id(*(uint64_t *)column_key, result.data, is_find);
         }
         if (is_find) {
           result.size = 1;
