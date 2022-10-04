@@ -213,10 +213,10 @@ static size_t Get(int32_t select_column,
 #endif
       Package result;
       if (where_column == 1) {
-        char hash_colum_key[4];
+        char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
-        memcpy(hash_colum_key, &uid.hashCode, 4);
-        result = clientRemoteGet(select_column, where_column, hash_colum_key, 4, tid, need_remote_peers);
+        memcpy(hash_colum_key, &uid.hashCode, 8);
+        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
         bool is_find = false;
         if (is_use_remote_pk && where_column == 3 && select_column == 0) {

@@ -17,10 +17,10 @@
 static uint64_t local_max_pks[50] = {0}, local_min_pks[50] = {0xFFFFFFFFFFFFFFFF};
 static uint64_t local_max_pk = 0xFFFFFFFFFFFFFFFF, local_min_pk = 0; // 前提：性能阶段在写阶段完成之前，不修改{min, max}，没有远程读pk(否则性能会变差)。
 
-static uint32_t blizardhashfn(const char *key) {
+static uint64_t blizardhashfn(const char *key) {
 //    return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
   // return XXH3_64bits(key, 128);
-  return *(uint32_t *)(key);
+  return *(uint64_t *)(key);
 }
 
 // static uint32_t shardhashfn(uint64_t hash) {
@@ -35,12 +35,12 @@ static uint32_t blizardhashfn(const char *key) {
 
 class UserId {
 public:
-  uint32_t hashCode;
+  uint64_t hashCode;
   UserId() {}
 	UserId(const char *str){
     hashCode = blizardhashfn(str);
 	}
-	UserId(const uint32_t hash){
+	UserId(const uint64_t hash){
     hashCode = hash;
 	}
 	bool operator==(const UserId & p) const 
@@ -103,7 +103,7 @@ static void initIndex() {
 static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
     uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
     uint64_t id = *(uint64_t *)tuple;
-    uint32_t uk_hash = blizardhashfn(tuple + 8);
+    uint64_t uk_hash = blizardhashfn(tuple + 8);
     uint64_t salary = *(uint64_t *)(tuple + 264);
 
 //    uint32_t uk_shard = shardhashfn(uk_hash);
@@ -182,7 +182,7 @@ static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, c
     if(is_local) {
       uid = UserId((char *)column_key);
     } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
-      memcpy(&uid.hashCode, (char *)column_key, 4);
+      memcpy(&uid.hashCode, (char *)column_key, 8);
     }
     uk.get(uid.hashCode, result, (const char *)column_key); // todo(wq): 网络请求只传递了hashcode,未传递实际数据
 //    uint32_t uk_shard = shardhashfn(uid.hashCode);

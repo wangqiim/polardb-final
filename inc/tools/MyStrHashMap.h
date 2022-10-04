@@ -160,7 +160,7 @@ class MyUserIdsHashMap {
   }
 
   // 传入user_id用来对比
-  void get(uint32_t key, std::vector<uint32_t> &ans, const char *used_id) {
+  void get(uint64_t key, std::vector<uint32_t> &ans, const char *used_id) {
     uint32_t bucket_idx = key & (hashSize_ - 1);
     if (hash_table[bucket_idx].value == 0) return;
     else {
@@ -183,7 +183,7 @@ class MyUserIdsHashMap {
     }
   }
 
-  void insert(uint32_t key, uint32_t value) {
+  void insert(uint64_t key, uint32_t value) {
     uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) {
       hash_table[pos].value = value + 1;
