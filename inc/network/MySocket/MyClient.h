@@ -16,12 +16,12 @@ int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid
     return -1;
   }
 
-//  if (request_type != RequestType::SEND_SALARY) {
-//    int on = 1;
-//    if (setsockopt(clients[server][tid], IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
-//        spdlog::error("set socket Close Nagle  error");
-//    }
-//  }
+  if (request_type != RequestType::SEND_SALARY) {
+    int on = 1;
+    if (setsockopt(clients[server][tid], IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
+        spdlog::error("set socket Close Nagle  error");
+    }
+  }
   setsockopt(clients[server][tid],SOL_SOCKET,SO_SNDBUF,(const char*)&NSendBuf,sizeof(int));
   struct sockaddr_in serv_addr;//首先要指定一个服务端的ip地址+端口，表明是向哪个服务端发起请求
   memset(&serv_addr, 0, sizeof(serv_addr));
