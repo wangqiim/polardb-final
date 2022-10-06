@@ -306,10 +306,10 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   spdlog::info("get sys pmem dir: {} ssd dir: {}", aep_dir, disk_dir);
   std::string disk_dir_str = std::string(disk_dir);
   std::string aep_dir_str = std::string(aep_dir);
-  std::string mmem_meta_filename = disk_dir_str + ".meta"; // todo(wq): 注意是否需要再.meata前面一个加'/'
-  std::string mmem_data_filename = disk_dir_str + ".mem_data";
-  std::string pmem_data_filename = aep_dir_str  + ".pmem_data";
-  std::string pmem_random_filename = aep_dir_str  + ".pmem_random";
+  std::string mmem_meta_filename = disk_dir_str + "prefix.meta"; // todo(wq): 注意是否需要再.meata前面一个加'/'
+  std::string mmem_data_filename = disk_dir_str + "prefix.mem_data";
+  std::string pmem_data_filename = aep_dir_str  + "prefix.pmem_data";
+  std::string pmem_random_filename = aep_dir_str  + "prefix.pmem_random";
 
   init_storage(mmem_meta_filename, mmem_data_filename, pmem_data_filename, pmem_random_filename);
   recovery();
