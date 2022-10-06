@@ -36,6 +36,11 @@ static void Put(const char *tuple, size_t len){
     if (write_count > PER_THREAD_MAX_WRITE) {
       spdlog::error("write_count overflow!");
     }
+    uint64_t salary = *(uint64_t *)(tuple + 264);
+    if (salary == 0xFFFFFFFFFFFFFFFFUL) {
+      spdlog::error("[error] salary is 0xFFFFFFFFFFFFFFFF");
+      exit(1);
+    }
     writeTuple(tuple, len, tid);
     insert(tuple, len, tid);
     // note: write_count just used for log/debug
