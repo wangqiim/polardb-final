@@ -41,7 +41,7 @@ static void storage_assert(bool condition, const std::string &msg) {
  */
 struct {
   char *address = nullptr;
-  int64_t *offset = nullptr;
+  uint64_t *offset = nullptr;
   std::pair<uint64_t, uint64_t> valid_range;
   std::mutex mtx_;
 } MmemMeta;
@@ -151,8 +151,12 @@ static void writeTuple(const char *tuple, size_t len) {
   if (tid == -1) {
     tid = StoreTid++;
     std::lock_guard<std::mutex> guard(MmemMeta.mtx_);
-    if (*MmemMeta.offset == -1) {
-      *MmemMeta.offset = (id / TOTAL_WRITE_NUM) * TOTAL_WRITE_NUM; // 0 or 2e8 or 4e8 or 6e8 or 8e8 or 10e8.......
+    if (*MmemMeta.offset == 0xFFFFFFFFFFFFFFFFUL) { // 0xFFFFFFFFFFFFFFFFUL 表示offset还未初始化
+      if (id < uint64_t(8e8)) {
+        *MmemMeta.offset = (id / TOTAL_WRITE_NUM) * TOTAL_WRITE_NUM; // 0 or 2e8 or 4e8 or 6e8
+      } else {
+        *MmemMeta.offset = 0;
+      }
       MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
       MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
     }
@@ -271,9 +275,9 @@ static void init_storage(const std::string &mmem_meta_filename,
     uint8_t default_value = 0;
     auto res = must_init_mmem_file(mmem_meta_filename, MmemMetaFileSIZE, default_value);
     MmemMeta.address = res.first;
-    MmemMeta.offset = (int64_t *)res.first;
+    MmemMeta.offset = (uint64_t *)res.first;
     if (res.second) { // 新文件
-      *(MmemMeta.offset) = -1;
+      *(MmemMeta.offset) = 0xFFFFFFFFFFFFFFFFUL; // 0xFFFFFFFFFFFFFFFFUL 表示offset还未初始化
     } else {
       MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
       MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
