@@ -176,6 +176,9 @@ static void writeTuple(const char *tuple, size_t len) {
     uint64_t rel_pos = *PmemRandom[tid].commit_cnt; // 该段数据上的相对偏移
     pmem_memcpy_nodrain(PmemRandom[tid].address + (rel_pos * RECORD_SIZE), tuple, RECORD_SIZE);
     pmem_drain();
+    if (rel_pos == PmemRandRecordNumPerThread) {
+      spdlog::error("[writeTuple] randpmem write overflow!!! PmemRandRecordNumPerThread = {}", PmemRandRecordNumPerThread);
+    }
     rel_pos++;
     pmem_memcpy_nodrain(PmemRandom[tid].commit_cnt, &rel_pos, 8);
     uint32_t abs_pos = tid * PmemRandRecordNumPerThread + (rel_pos - 1);
