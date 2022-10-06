@@ -40,3 +40,9 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem)
 # set(ececutable_output_path ${project_source_dir}/bin/)
 # #7.add link library，添加可执行文件所需要的库，比如我们用到了libm.so（命名规则：lib+name+.so），就添加该库的名称
 # TARGET_LINK_LIBRARIES(${PROJECT_NAME} libpmem.so pthread pmemlog pmem)
+
+
+# wq
+
+add_executable(test_storage inc/store/NvmStoreV2_test.cpp)
+target_link_libraries(test_storage pmem pthread)

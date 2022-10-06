@@ -95,6 +95,15 @@ const uint64_t PmemRandRecordNumPerThread = 1000000; // 400W太大，pmem不够�
 const uint64_t PmemRandomFileSIZEPerThread = 8 + RECORD_SIZE * PmemRandRecordNumPerThread;
 const uint64_t TotalPmemRandomFileSIZE = PmemRandomFileSIZEPerThread * PMEM_FILE_COUNT;
 
+// const uint64_t MmemMetaFileSIZE = 8;          // 目前仅仅存储(offset)
+// const uint64_t MmemDataFileSIZE = 8 * TOTAL_WRITE_NUM;    // 2亿条salary
+// const uint64_t PmemDataFileSIZE = 256 * TOTAL_WRITE_NUM;  // 2亿条 (user_id, name)
+
+// // (commit_cnt(8 bytes) + 100W) * 50，用来handle正确性阶段的随机id写入，每个线程不会写超过100万条数据
+// const uint64_t PmemRandRecordNumPerThread = 10000; // 400W太大，pmem不够放
+// const uint64_t PmemRandomFileSIZEPerThread = 8 + RECORD_SIZE * PmemRandRecordNumPerThread;
+// const uint64_t TotalPmemRandomFileSIZE = PmemRandomFileSIZEPerThread * PMEM_FILE_COUNT;
+
 // 该函数不会失败，否则panic
 std::pair<char*, bool> must_init_mmem_file(const std::string path, uint64_t mmap_size, uint8_t default_val) {
   bool is_create = false;
@@ -133,11 +142,11 @@ std::pair<char*, bool> must_init_pmem_file(const std::string path, uint64_t mmap
   return {ptr, is_create};
 }
 
-static std::atomic<uint8_t> StoreTid(0);
+static std::atomic<int8_t> StoreTid(0);
 // 1. 写入数据
 // 2. 写入索引
 static void writeTuple(const char *tuple, size_t len) {
-  static thread_local uint8_t tid = -1;
+  static thread_local int8_t tid = -1;
   uint64_t id = *(uint64_t *)tuple;
   if (tid == -1) {
     tid = StoreTid++;
@@ -156,7 +165,7 @@ static void writeTuple(const char *tuple, size_t len) {
     // 1. userId, name 写入pmem
     pmem_memcpy_nodrain(PmemData.address + 256 * pos, tuple + 8, 256);
     // 2. salary写入mmem
-    memcpy(MmemData.address + 8 * pos, tuple + 264, 4);
+    memcpy(MmemData.address + 8 * pos, tuple + 264, 8);
     pmem_drain();
     insert_idx(tuple, len, pos);
   } else {
@@ -164,7 +173,7 @@ static void writeTuple(const char *tuple, size_t len) {
     pmem_memcpy_nodrain(PmemRandom[tid].address + (rel_pos * RECORD_SIZE), tuple, RECORD_SIZE);
     pmem_drain();
     rel_pos++;
-    pmem_memcpy_nodrain(PmemRandom[tid].commit_cnt, &rel_pos, RECORD_SIZE);
+    pmem_memcpy_nodrain(PmemRandom[tid].commit_cnt, &rel_pos, 8);
     uint32_t abs_pos = tid * PmemRandRecordNumPerThread + (rel_pos - 1);
     abs_pos = abs_pos | 0x80000000U; // 将最高位置为1，用以区分是否是random id区域上的数据
     insert_idx(tuple, len, abs_pos);
@@ -174,7 +183,7 @@ static void writeTuple(const char *tuple, size_t len) {
 // is_normal = true 从pmem+mem上读
 // is_normal = false 从rand_pmem上读
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
-  if ((pos & 0x8000000U) == 0) { // 最高位是0
+  if ((pos & 0x80000000U) == 0) { // 最高位是0
     if (select_column == Id) {
       uint64_t id = pos + MmemMeta.valid_range.first;
       memcpy(res, &id, 8);
@@ -243,7 +252,7 @@ static void recovery() {
     }
   }
   // 2. 恢复random写入区域的数据
-  for (int i = 0; i < PMEM_FILE_COUNT; i++) {
+  for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint64_t commit_cnt = *PmemRandom[i].commit_cnt;
     for (uint64_t j = 0; j < commit_cnt; j++) {
       memcpy(tuple, PmemRandom[i].address + j*RECORD_SIZE, RECORD_SIZE);
@@ -286,7 +295,7 @@ static void init_storage(const std::string &mmem_meta_filename,
   {
     uint8_t default_value = 0;
     auto res = must_init_pmem_file(pmem_random_filename, TotalPmemRandomFileSIZE, default_value);
-    for (int i = 0; i < PMEM_FILE_COUNT; i++) {
+    for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
       PmemRandom[i].address = res.first + (i * PmemRandomFileSIZEPerThread) + 8;
       PmemRandom[i].commit_cnt = reinterpret_cast<uint64_t *>(res.first + (i * PmemRandomFileSIZEPerThread));
     }
