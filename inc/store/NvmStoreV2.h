@@ -14,7 +14,6 @@
 #include "Config.h"
 #include "./index/MemIndex.h"
 
-std::mutex rand_write_mtx;
 static void storage_assert(bool condition, const std::string &msg) {
   if (!condition) {
     spdlog::error("[storage] message = {}", msg);
@@ -27,7 +26,7 @@ static void storage_assert(bool condition, const std::string &msg) {
  * mmem_meta_file: 记录meta信息，比如pmem_data_file的起始偏移，比如slot_0的id可能是0或2e或4e或6e
  * mmem_data_file: (salary,commitFlag)写在mmem_data_file上
  * pmem_data_file: 其中user_id和name写在pmem_data_file上
- * pmem_random_file: 一个大pmem进行互斥append, 用来处理测试阶段的随机写入, 不care性能。比如写入id=0,id=99999999999999
+ * pmem_random_file: 用来处理正确性阶段的随机id。一个大的pmem，根据写入线程的id对每个线程写入的数据分块
  */
 
 /**
@@ -43,16 +42,18 @@ static void storage_assert(bool condition, const std::string &msg) {
 struct {
   char *address = nullptr;
   int64_t *offset = nullptr;
+  std::pair<uint64_t, uint64_t> valid_range;
+  std::mutex mtx_;
 } MmemMeta;
 
 /**
- * mmem_data_file 上数据仅存储salary, commit_flag. (uint64_t, uint64_t), (注意：commit_flag无法去除，因为测试样例中salary会存在插入0的情况.)
- * commit_flag=0表示该数据无效，comit_flag = 0xFFFFFFFF表示该数据已经提交
- * -----------------------------------------------------------------------------
+ * mmem_data_file 上数据仅存储salary + 1. uint64_t, (注意：salary需要加1作为commit标记(测试数据有salary = 0).)
+ * salary=0xFFFF FFFF FFFF FFFF表示该数据无效，否则表示该数据已提交
+ * -------------------------------------------------------------------------
  * | slot_0 (id = 0+off))  | slot_1 (id = 1+off))  | slot_2 (id = 2+off))  | 
- * -----------------------------------------------------------------------------
- * | (salary, commit_flag) | (salary, commit_flag) | (salary, commit_flag) | 
- * -----------------------------------------------------------------------------
+ * -------------------------------------------------------------------------
+ * |        salary         |        salary         |        salary         | 
+ * -------------------------------------------------------------------------
  * 
  */
 struct {
@@ -72,7 +73,7 @@ struct {
 } PmemData;
 
 /**
- * pmem_random_file 上数据存储commit_cnt和append完整记录，每次写入是互斥的。
+ * pmem_random_file 上数据存储commit_cnt和append完整记录，每个写入线程各有一个。
  * --------------------------------------------------------------------
  * |   8 bytes  | slot_0            |        slot_1       | ... | ... 
  * --------------------------------------------------------------------
@@ -83,16 +84,19 @@ struct {
 struct {
   char *address = nullptr;
   uint64_t *commit_cnt;
-} PmemRandom;
+} PmemRandom[PMEM_FILE_COUNT];
 
-const uint64_t CommitFlag = 0xFFFFFFFFFFFFFFFFUL;
 const uint64_t MmemMetaFileSIZE = 8;          // 目前仅仅存储(offset)
-const uint64_t MmemDataFileSIZE = (8 + 8) * TOTAL_WRITE_NUM;    // 2亿条 (salary+commitFlag)
+const uint64_t MmemDataFileSIZE = 8 * TOTAL_WRITE_NUM;    // 2亿条salary
 const uint64_t PmemDataFileSIZE = 256 * TOTAL_WRITE_NUM;  // 2亿条 (user_id, name)
-const uint64_t PmemRandomFileSIZE = 8 + RECORD_SIZE * TOTAL_WRITE_NUM;  // commit_cnt(8 bytes) + 2亿条完整记录，用来handle随机写入
+
+// (commit_cnt(8 bytes) + 100W) * 50，用来handle正确性阶段的随机id写入，每个线程不会写超过100万条数据
+const uint64_t PmemRandRecordNumPerThread = 1000000; // 400W太大，pmem不够放
+const uint64_t PmemRandomFileSIZEPerThread = 8 + RECORD_SIZE * PmemRandRecordNumPerThread;
+const uint64_t TotalPmemRandomFileSIZE = PmemRandomFileSIZEPerThread * PMEM_FILE_COUNT;
 
 // 该函数不会失败，否则panic
-std::pair<char*, bool> must_init_mmem_file(const std::string path, uint64_t mmap_size) {
+std::pair<char*, bool> must_init_mmem_file(const std::string path, uint64_t mmap_size, uint8_t default_val) {
   bool is_create = false;
   int fd = -1;
   if (access(path.c_str(), F_OK) != 0) { // 不存在,则创建文件
@@ -108,13 +112,13 @@ std::pair<char*, bool> must_init_mmem_file(const std::string path, uint64_t mmap
   char *ptr = (char *)mmap(0, mmap_size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
   storage_assert(ptr != nullptr, "mmap fail");
   if (is_create) {
-    memset(ptr, 0, mmap_size);
+    memset(ptr, default_val, mmap_size);
   }
   return {ptr, is_create};
 }
 
 // 该函数不会失败，否则panic
-std::pair<char*, bool> must_init_pmem_file(const std::string path, uint64_t mmap_size) {
+std::pair<char*, bool> must_init_pmem_file(const std::string path, uint64_t mmap_size, uint8_t default_val) {
   bool is_create = false;
   if (access(path.c_str(), F_OK) != 0) { // 不存在,则创建文件
     is_create = true;
@@ -124,63 +128,97 @@ std::pair<char*, bool> must_init_pmem_file(const std::string path, uint64_t mmap
   char *ptr = (char *)pmem_map_file(path.c_str(), mmap_size, PMEM_FILE_CREATE, 0666, &mapped_len, &is_pmem);
   storage_assert(ptr != nullptr, "pmem_map_file fail");
   if (is_create) {
-    pmem_memset_nodrain(ptr, 0, mmap_size);
+    pmem_memset_nodrain(ptr, default_val, mmap_size);
   }
   return {ptr, is_create};
 }
 
-static void writeTuple(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
+static std::atomic<uint8_t> StoreTid(0);
+// 1. 写入数据
+// 2. 写入索引
+static void writeTuple(const char *tuple, size_t len) {
+  static thread_local uint8_t tid = -1;
   uint64_t id = *(uint64_t *)tuple;
-  auto atomic_offset = reinterpret_cast<std::atomic<int64_t> *>(MmemMeta.offset);
-  auto old_value = atomic_offset->load();
-  int64_t new_value = id / TOTAL_WRITE_NUM * TOTAL_WRITE_NUM; // 0, 1, 2, 3以外的值都是随机写入
-  
-  if (old_value == -1 && new_value >= 0 && new_value <= 6e8) {
-      // 必须是属于0, 1, 2, 3 即 [0, 8e-1]范围内的id
-    while (!atomic_offset->compare_exchange_strong(old_value, new_value)) { // cas保证只会被初始化一次offset
-      if (old_value != -1) {
-        break;
-      }
+  if (tid == -1) {
+    tid = StoreTid++;
+    std::lock_guard<std::mutex> guard(MmemMeta.mtx_);
+    if (*MmemMeta.offset == -1) {
+      *MmemMeta.offset = (id / TOTAL_WRITE_NUM) * TOTAL_WRITE_NUM; // 0 or 2e8 or 4e8 or 6e8 or 8e8 or 10e8.......
+      MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
+      MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
     }
   }
 
-  if (*MmemMeta.offset == new_value) {
+  // 如果id属于[MmemMeta.valid_range.first, MmemMeta.valid_range.second), 则写入mem+pmem
+  // 否则，写入rand_pmem区域
+  if (MmemMeta.valid_range.first <= id && id < MmemMeta.valid_range.second) {
+    uint64_t pos = id - MmemMeta.valid_range.first;
     // 1. userId, name 写入pmem
-    pmem_memcpy_nodrain(PmemData.address+256*(id-*MmemMeta.offset), tuple + 8, 256);
+    pmem_memcpy_nodrain(PmemData.address + 256 * pos, tuple + 8, 256);
     // 2. salary写入mmem
-    char *mmem_data_ptr = MmemData.address+16*(id-*MmemMeta.offset);
-    memcpy(mmem_data_ptr, tuple+264, 4);
-    // 3. commitFlag写入mmem
-    *(uint64_t *)(mmem_data_ptr + 8) = CommitFlag;
+    memcpy(MmemData.address + 8 * pos, tuple + 264, 4);
     pmem_drain();
+    insert_idx(tuple, len, pos);
   } else {
-    std::lock_guard<std::mutex> lock(rand_write_mtx);
-    pmem_memcpy_nodrain(PmemRandom.address + (*PmemRandom.commit_cnt * RECORD_SIZE), tuple, RECORD_SIZE);
-    *PmemRandom.commit_cnt = *PmemRandom.commit_cnt + 1;
+    uint64_t rel_pos = *PmemRandom[tid].commit_cnt; // 该段数据上的相对偏移
+    pmem_memcpy_nodrain(PmemRandom[tid].address + (rel_pos * RECORD_SIZE), tuple, RECORD_SIZE);
     pmem_drain();
+    rel_pos++;
+    pmem_memcpy_nodrain(PmemRandom[tid].commit_cnt, &rel_pos, RECORD_SIZE);
+    uint32_t abs_pos = tid * PmemRandRecordNumPerThread + (rel_pos - 1);
+    abs_pos = abs_pos | 0x80000000U; // 将最高位置为1，用以区分是否是random id区域上的数据
+    insert_idx(tuple, len, abs_pos);
   }
 }
 
+// is_normal = true 从pmem+mem上读
+// is_normal = false 从rand_pmem上读
 static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
-  if (select_column == Id) {
-    uint64_t id = *MmemMeta.offset + pos;
-    memcpy(res, &id, 8);
-    return;
-  }
-  if (select_column == Userid) {
-    char *pmem_data_ptr = PmemData.address + pos * (256);
-    memcpy(res, pmem_data_ptr, 128);
-    return;
-  }
-  if (select_column == Name) {
-    char *pmem_data_ptr = PmemData.address + pos * (256);
-    memcpy(res, pmem_data_ptr + 128, 128);
-    return;
-  }
-  if (select_column == Salary) {
-    char *mmem_data_ptr = MmemData.address + pos * (16);
-    memcpy(res, mmem_data_ptr, 8);
-    return;    
+  if ((pos & 0x8000000U) == 0) { // 最高位是0
+    if (select_column == Id) {
+      uint64_t id = pos + MmemMeta.valid_range.first;
+      memcpy(res, &id, 8);
+      return;
+    }
+    if (select_column == Userid) {
+      char *pmem_data_ptr = PmemData.address + pos * 256;
+      memcpy(res, pmem_data_ptr, 128);
+      return;
+    }
+    if (select_column == Name) {
+      char *pmem_data_ptr = PmemData.address + pos * 256;
+      memcpy(res, pmem_data_ptr + 128, 128);
+      return;
+    }
+    if (select_column == Salary) {
+      char *mmem_data_ptr = MmemData.address + pos * 8;
+      memcpy(res, mmem_data_ptr, 8);
+      return;    
+    }
+  } else {
+    pos = 0x7FFFFFFFU & pos;
+    uint32_t tid = pos / PmemRandRecordNumPerThread;
+    uint32_t rel_pos = pos % PmemRandRecordNumPerThread;
+    if (select_column == Id) {
+      char *pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE;
+      memcpy(res, pmem_data_ptr, 8);
+      return;
+    }
+    if (select_column == Userid) {
+      char *pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE + 8;
+      memcpy(res, pmem_data_ptr, 128);
+      return;
+    }
+    if (select_column == Name) {
+      char *pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE + 136;
+      memcpy(res, pmem_data_ptr, 128);
+      return;
+    }
+    if (select_column == Salary) {
+      char *pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE + 264;
+      memcpy(res, pmem_data_ptr, 8);
+      return;    
+    }
   }
 }
 
@@ -189,27 +227,30 @@ static void recovery() {
   uint64_t recovery_cnt = 0;
   unsigned char tuple[RECORD_SIZE];
   // 1. 恢复正常区域的数据
-  if (*MmemMeta.offset >= 0) {
-    for (uint64_t i = 0; i < TOTAL_WRITE_NUM; i++) {
-      char *mmem_data_ptr = MmemData.address + 16 * i;
-      uint64_t commit_flag = *(uint64_t *)(mmem_data_ptr + 8);
-      if (commit_flag != 0) {
-        uint64_t id = i + *MmemMeta.offset;
-        char *pmem_data_ptr = PmemData.address + 256 * i;
+  if (*MmemMeta.offset != -1) {
+    for (uint64_t pos = 0; pos < TOTAL_WRITE_NUM; pos++) {
+      uint64_t salary = *(uint64_t *)(MmemData.address + 8 * pos);
+      const uint64_t UN_COMMIT_SALARY = 0xFFFFFFFFFFFFFFFFUL;
+      if (salary != UN_COMMIT_SALARY) { // 该位置的数据已经提交
+        uint64_t id = pos + MmemMeta.valid_range.first;
+        char *pmem_data_ptr = PmemData.address + 256 * pos;
         memcpy(tuple, &id, 8);
         memcpy(tuple + 8, pmem_data_ptr, 256);
-        memcpy(tuple + 264, mmem_data_ptr, 8);
+        memcpy(tuple + 264, &salary, 8);
         recovery_cnt++;
       }
-      insert((const char *)tuple, RECORD_SIZE, i);
+      insert_idx((const char *)tuple, RECORD_SIZE, (uint32_t)pos);
     }
   }
   // 2. 恢复random写入区域的数据
-  uint64_t commit_cnt = *PmemRandom.commit_cnt;
-  for (uint64_t i = 0; i < commit_cnt; i++) {
-    memcpy(tuple, PmemRandom.address + commit_cnt*RECORD_SIZE, RECORD_SIZE);
-    insert((const char *)tuple, RECORD_SIZE, 2e8 + i); // 正常写入的id会被取余到[0, 2e8-1]的范围，因此slot号可以通过2e8为分界线进行区分
-    recovery_cnt++;
+  for (int i = 0; i < PMEM_FILE_COUNT; i++) {
+    uint64_t commit_cnt = *PmemRandom[i].commit_cnt;
+    for (uint64_t j = 0; j < commit_cnt; j++) {
+      memcpy(tuple, PmemRandom[i].address + j*RECORD_SIZE, RECORD_SIZE);
+      uint32_t abs_pos = PmemRandRecordNumPerThread * i + j;
+      insert_idx((const char *)tuple, RECORD_SIZE, (1UL << 31) | abs_pos);
+      recovery_cnt++;
+    }
   }
   spdlog::info("recovery success, recovery {} tuples", recovery_cnt);
 }
@@ -218,28 +259,37 @@ static void init_storage(const std::string &mmem_meta_filename,
     const std::string &mmem_data_filename, const std::string &pmem_data_filename, const std::string &pmem_random_filename) {
   // 1. 创建/打开 mmem meta file, 如果是创建，则初始化该文件，并且offset置为-1
   {
-    auto res = must_init_mmem_file(mmem_meta_filename, MmemMetaFileSIZE);
+    uint8_t default_value = 0;
+    auto res = must_init_mmem_file(mmem_meta_filename, MmemMetaFileSIZE, default_value);
     MmemMeta.address = res.first;
     MmemMeta.offset = (int64_t *)res.first;
     if (res.second) { // 新文件
       *(MmemMeta.offset) = -1;
+    } else {
+      MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
+      MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
     }
   }
   // 2. 创建/打开 mmem data file, 如果是创建，则初始化该文件
   {
-    auto res = must_init_mmem_file(mmem_data_filename, MmemDataFileSIZE);
+    uint8_t default_value = 0xFF;
+    auto res = must_init_mmem_file(mmem_data_filename, MmemDataFileSIZE, default_value);
     MmemData.address = res.first;
   }
   // 3. 创建/打开 pmem data file, 如果是创建，则初始化该文件
   {
-    auto res = must_init_pmem_file(pmem_data_filename, PmemDataFileSIZE);
+    uint8_t default_value = 0;
+    auto res = must_init_pmem_file(pmem_data_filename, PmemDataFileSIZE, default_value);
     PmemData.address  = res.first;
   }
   // 3. 创建/打开 pmem random file, 如果是创建，则初始化该文件
   {
-    auto res = must_init_pmem_file(pmem_random_filename, PmemRandomFileSIZE);
-    PmemRandom.commit_cnt = (uint64_t *)res.first;
-    PmemRandom.address  = res.first + 8;
+    uint8_t default_value = 0;
+    auto res = must_init_pmem_file(pmem_random_filename, TotalPmemRandomFileSIZE, default_value);
+    for (int i = 0; i < PMEM_FILE_COUNT; i++) {
+      PmemRandom[i].address = res.first + (i * PmemRandomFileSIZEPerThread) + 8;
+      PmemRandom[i].commit_cnt = reinterpret_cast<uint64_t *>(res.first + (i * PmemRandomFileSIZEPerThread));
+    }
   }
 }
 
@@ -248,9 +298,9 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   std::string disk_dir_str = std::string(disk_dir);
   std::string aep_dir_str = std::string(aep_dir);
   std::string mmem_meta_filename = disk_dir_str + ".meta"; // todo(wq): 注意是否需要再.meata前面一个加'/'
-  std::string mmem_data_filename = disk_dir_str + ".data";
-  std::string pmem_data_filename = aep_dir_str  + ".data";
-  std::string pmem_random_filename = aep_dir_str  + ".random";
+  std::string mmem_data_filename = disk_dir_str + ".mem_data";
+  std::string pmem_data_filename = aep_dir_str  + ".pmem_data";
+  std::string pmem_random_filename = aep_dir_str  + ".pmem_random";
 
   init_storage(mmem_meta_filename, mmem_data_filename, pmem_data_filename, pmem_random_filename);
   recovery();

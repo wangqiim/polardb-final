@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include "./network/Group.h"
-#include "./store/NvmStore.h"
+#include "./store/NvmStoreV2.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
 
@@ -41,8 +41,7 @@ static void Put(const char *tuple, size_t len){
       spdlog::error("[error] salary is 0xFFFFFFFFFFFFFFFF");
       exit(1);
     }
-    writeTuple(tuple, len, tid);
-    insert(tuple, len, tid);
+    writeTuple(tuple, len);
     // note: write_count just used for log/debug
     if (write_count % 1000000 == 0) {
       if (write_count % 4000000 == 0) {

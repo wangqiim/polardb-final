@@ -61,8 +61,6 @@ struct UserIdHash {
 pthread_rwlock_t uk_rwlock[UK_HASH_MAP_SHARD];
 pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
 
-uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
-
 static MyUInt64HashMap pk;
 static MyMultiMap<uint64_t, uint32_t> sk[SK_HASH_MAP_SHARD];
 
@@ -73,7 +71,6 @@ static emhash7::HashMap<UserId, uint32_t, UserIdHash> uk[UK_HASH_MAP_SHARD];
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
-  memset(thread_pos, 0, sizeof(thread_pos));
 
   for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
     uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
@@ -91,8 +88,7 @@ static void initIndex() {
 // 该方法有两处调用
 // 1. recovery时调用
 // 2. write插入数据时调用
-static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_t tid) {
-    uint32_t pos = thread_pos[tid] + PER_THREAD_MAX_WRITE * tid;
+static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, uint32_t pos) {
     uint64_t id = *(uint64_t *)tuple;
     uint64_t uk_hash = blizardhashfn(tuple + 8);
     uint64_t salary = *(uint64_t *)(tuple + 264);
@@ -123,7 +119,6 @@ static void insert(const char *tuple, __attribute__((unused)) size_t len, uint8_
 
     if (id > local_max_pk) local_max_pk = id;
     if (id < local_min_pk) local_min_pk = id;
-    thread_pos[tid]++;
 }
 
 //static int getValueFromUK(int32_t select_colum, const void *column_key, bool is_local, void *res) {
