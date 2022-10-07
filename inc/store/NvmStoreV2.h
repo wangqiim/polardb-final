@@ -258,9 +258,11 @@ static void recovery() {
       insert_idx((const char *)tuple, RECORD_SIZE, (uint32_t)pos);
     }
   }
+  spdlog::info("[recovery] recovery normal data success!");
   // 2. 恢复random写入区域的数据
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint64_t commit_cnt = *PmemRandom[i].commit_cnt;
+    spdlog::info("[recovery] randomPmem tid={}, commit_cnt={}!", i, commit_cnt);
     for (uint64_t j = 0; j < commit_cnt; j++) {
       memcpy(tuple, PmemRandom[i].address + j*RECORD_SIZE, RECORD_SIZE);
       uint32_t abs_pos = PmemRandRecordNumPerThread * i + j;
@@ -319,6 +321,7 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   std::string pmem_random_filename = aep_dir_str  + "prefix.pmem_random";
 
   init_storage(mmem_meta_filename, mmem_data_filename, pmem_data_filename, pmem_random_filename);
+  spdlog::info("[initStore] init_storage done!");
   recovery();
   spdlog::info("Store Init End");
 }
