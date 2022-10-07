@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include "./network/Group.h"
-#include "./store/NvmStore.h"
+#include "./store/NvmStoreV2.h"
 #include "util.h"
 #include "spdlog/spdlog.h"
 #include <chrono>
@@ -75,8 +75,7 @@ static void Put(const char *tuple, size_t len){
     if (write_count > PER_THREAD_MAX_WRITE) {
       spdlog::error("write_count overflow!");
     }
-    writeTuple(tuple, len, tid);
-    insert(tuple, len, tid);
+    writeTuple(tuple, len);
     
     broadcast_salary(*(uint64_t *)(tuple + 264));
 
@@ -85,19 +84,15 @@ static void Put(const char *tuple, size_t len){
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
-        Store_Sync();
+        // Store_Sync();
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
 #ifdef debug_db
         stat_log();
 #endif
-        uint64_t tmp_max = 0, tmp_min = 0xFFFFFFFFFFFFFFFF;
-        for (int i = 0; i < 50; i++) {
-          if (local_max_pks[i] > tmp_max) tmp_max = local_max_pks[i];
-          if (local_min_pks[i] < tmp_min) tmp_min = local_min_pks[i];
-        }
-        local_max_pk = tmp_max;
-        local_min_pk = tmp_min;
+        local_min_pk = MmemMeta.valid_range.first;
+        local_max_pk = MmemMeta.valid_range.second - 1;
+        spdlog::info("local_min_pk = {}, local_max_pk = {}", local_min_pk, local_max_pk);
         is_use_remote_pk = true;
         // using namespace std::chrono_literals;
         // std::this_thread::sleep_for(300s);
@@ -239,6 +234,5 @@ static void deinitNvmDB() {
 #ifdef debug_db
   stat_log();
 #endif
-  store_stat();
   spdlog::info("NvmDB deinit done");
 }

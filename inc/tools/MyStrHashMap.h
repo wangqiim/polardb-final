@@ -18,10 +18,10 @@ struct alignas(4) MyStrHead {
     uint32_t value = 0;
 };
 
-class MyStringHashMap {
+class MySalaryHashMap {
   public:
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
-  MyStringHashMap(uint32_t hashSize, std::string file_name) {
+  MySalaryHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
     hashSize_ = hashSize;
     pmem_record_num_ = 0;
@@ -31,12 +31,12 @@ class MyStringHashMap {
     file_name = "/mnt/aep/" + file_name;
     if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
                                                   0666, &mapped_len, &is_pmem)) == NULL ) {
-      spdlog::error("[MyStringHashMap] pmem_map_file");
+      spdlog::error("[MySalaryHashMap] pmem_map_file");
     }
     pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
   }
 
-  ~MyStringHashMap() {
+  ~MySalaryHashMap() {
     delete hash_table;
   }
 
@@ -82,9 +82,9 @@ class MyStringHashMap {
     uint64_t pmem_record_num_;
 };
 
-class MyUserIdsHashMap {
+class MyUserIdHashMap {
   public:
-  MyUserIdsHashMap(uint32_t hashSize, std::string file_name) {
+  MyUserIdHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
     hashSize_ = hashSize;
     pmem_record_num_ = 0;
@@ -94,12 +94,12 @@ class MyUserIdsHashMap {
     file_name = "/mnt/aep/" + file_name;
     if ( (pmem_addr_ = (char *)pmem_map_file(file_name.c_str(), mmap_size, PMEM_FILE_CREATE,
                                                   0666, &mapped_len, &is_pmem)) == NULL ) {
-      spdlog::error("[MyStringHashMap] pmem_map_file");
+      spdlog::error("[MyUserIdHashMap] pmem_map_file");
     }
     pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
   }
 
-  ~MyUserIdsHashMap() {
+  ~MyUserIdHashMap() {
     delete hash_table;
   }
 
@@ -178,14 +178,14 @@ class MyString256HashMap {
   const uint32_t hashSize = 1<<26;
 };
 
-class MyUInt64HashMap {
+class MyPKHashMap {
   public:
-  MyUInt64HashMap() {
+  MyPKHashMap() {
     hash_table = new uint32_t[hashSize];
     memset(hash_table, 0, sizeof(uint32_t) * hashSize);
   }
 
-  ~MyUInt64HashMap() {
+  ~MyPKHashMap() {
     delete hash_table;
   }
   //todo 缺少冲突管理
