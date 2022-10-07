@@ -322,3 +322,16 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   recovery();
   spdlog::info("Store Init End");
 }
+
+static char *GetUserIdByPos(uint32_t pos) {
+  char *pmem_data_ptr = nullptr;
+  if ((pos & 0x80000000UL) == 0) {
+    pmem_data_ptr = PmemData.address + pos * 256;
+  } else {
+    pos = 0x7FFFFFFFU & pos;
+    uint32_t tid = pos / PmemRandRecordNumPerThread;
+    uint32_t rel_pos = pos % PmemRandRecordNumPerThread;
+    pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE + 8;
+  }
+  return pmem_data_ptr;
+}
