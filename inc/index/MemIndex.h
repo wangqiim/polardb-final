@@ -11,7 +11,7 @@
 #include "../tools/MyHashMap/MyMultiMap.h"
 #include "../tools/MyStrHashMap.h"
 
-static uint64_t local_max_pk = 0, local_min_pk = 0xFFFFFFFFFFFFFFFF;
+static uint64_t local_max_pk = 0xFFFFFFFFFFFFFFFF, local_min_pk = 0; // 前提：性能阶段在写阶段完成之前，不修改{min, max}，没有远程读pk(否则性能会变差)。
 
 static uint64_t blizardhashfn(const char *key) {
     return ankerl::unordered_dense::detail::wyhash::hash(key, 128);
@@ -116,9 +116,6 @@ static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, ui
     //释放所有锁
     pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
     pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
-
-    if (id > local_max_pk) local_max_pk = id;
-    if (id < local_min_pk) local_min_pk = id;
 }
 
 //static int getValueFromUK(int32_t select_colum, const void *column_key, bool is_local, void *res) {

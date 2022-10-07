@@ -46,6 +46,8 @@ static void Put(const char *tuple, size_t len){
     } else {
       Util::print_resident_set_size();
       spdlog::info("total write 200000000 tuples");
+      local_min_pk = MmemMeta.valid_range.first;
+      local_max_pk = MmemMeta.valid_range.second - 1;
       is_use_remote_pk = true;
       finished_cv.notify_all();
     }
