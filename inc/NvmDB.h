@@ -105,6 +105,7 @@ static void Put(const char *tuple, size_t len){
 static std::atomic<uint8_t> getTid(0);
 static size_t Get(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
+    char *old_res = (char *)res;
     static thread_local uint8_t tid = 0;
     // 1. 设置tid
     if (is_local == true && tid == 0) { // socket_server 也会调用该函数，防止tid溢出
@@ -206,7 +207,14 @@ static size_t Get(int32_t select_column,
         }
       }
 #endif
+
+      if (is_use_remote_pk && result.size + local_get_count != 1) {
+        spdlog::error("[Get] return_num = {}, where_column = {}, res = {}", result.size + local_get_count, where_column, *(uint64_t *)old_res);
+      }
       return result.size + local_get_count;
+    }
+    if (is_use_remote_pk && local_get_count != 1) {
+      spdlog::error("[Get] return_num = {}, where_column = {}, res = {}", local_get_count, where_column, *(uint64_t *)old_res);
     }
     return local_get_count;
 }
