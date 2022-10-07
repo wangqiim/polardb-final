@@ -15,6 +15,10 @@ static std::atomic<uint32_t> pk_remote_count(0);
 static std::atomic<uint32_t> uk_remote_count(0);
 static std::atomic<uint32_t> sk_remote_count(0);
 
+std::mutex finished_mtx;
+std::condition_variable finished_cv;
+static int finished_write_thread_cnt = 0;
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
@@ -25,31 +29,27 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
-static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len){
-    static thread_local uint8_t tid = putTid++;
-    if (tid >= PMEM_FILE_COUNT) {
-      spdlog::error("tid overflow, current tid = {}", tid);
+  static thread_local uint64_t write_count = 0;
+  write_count++;
+  uint64_t salary = *(uint64_t *)(tuple + 264);
+  if (salary == 0xFFFFFFFFFFFFFFFFUL) {
+    spdlog::error("[error] salary is 0xFFFFFFFFFFFFFFFF");
+    exit(1);
+  }
+  writeTuple(tuple, len);
+  if (write_count == PER_THREAD_MAX_WRITE) {
+    spdlog::info("thread write {} tuples", PER_THREAD_MAX_WRITE);
+    std::unique_lock lk(finished_mtx);
+    if (++finished_write_thread_cnt != 50) {
+      finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
+    } else {
+      Util::print_resident_set_size();
+      spdlog::info("total write 200000000 tuples");
+      is_use_remote_pk = true;
+      finished_cv.notify_all();
     }
-    static thread_local uint64_t write_count = 0;
-    write_count++;
-    if (write_count > PER_THREAD_MAX_WRITE) {
-      spdlog::error("write_count overflow!");
-    }
-    uint64_t salary = *(uint64_t *)(tuple + 264);
-    if (salary == 0xFFFFFFFFFFFFFFFFUL) {
-      spdlog::error("[error] salary is 0xFFFFFFFFFFFFFFFF");
-      exit(1);
-    }
-    writeTuple(tuple, len);
-    // note: write_count just used for log/debug
-    if (write_count % 1000000 == 0) {
-      if (write_count % 4000000 == 0) {
-        is_use_remote_pk = true;
-        Util::print_resident_set_size();
-      }
-      spdlog::info("thread {} write {}", tid, write_count);
-    }
+  }
 }
 
 static std::atomic<uint8_t> getTid(0);
