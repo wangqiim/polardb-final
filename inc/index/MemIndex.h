@@ -14,7 +14,6 @@
 #include "../tools/MyHashMap/MyMultiMapV2.h"
 #include "../tools/MyStrHashMap.h"
 
-static uint64_t local_max_pks[50] = {0}, local_min_pks[50] = {0xFFFFFFFFFFFFFFFF};
 static uint64_t local_max_pk = 0xFFFFFFFFFFFFFFFF, local_min_pk = 0; // 前提：性能阶段在写阶段完成之前，不修改{min, max}，没有远程读pk(否则性能会变差)。
 
 static uint64_t blizardhashfn(const char *key) {
@@ -67,7 +66,6 @@ struct UserIdHash {
 //pthread_rwlock_t uk_rwlock[UK_HASH_MAP_SHARD];
 //pthread_rwlock_t sk_rwlock[SK_HASH_MAP_SHARD];
 
-uint32_t thread_pos[50]; // 用来插索引时候作为value (第几个record)
 
 static MyPKHashMap pk;
 static MyUserIdHashMap uk(1<<30, "uk");
@@ -82,7 +80,6 @@ static MySalaryHashMap sk(1<<30, "sk");
 
 static void initIndex() {
   spdlog::info("Init Index Begin");
-  memset(thread_pos, 0, sizeof(thread_pos));
 
 //  for (size_t i = 0; i < UK_HASH_MAP_SHARD; i++) {
 //    uk[i].reserve(TOTAL_WRITE_NUM / UK_HASH_MAP_SHARD + 1);
