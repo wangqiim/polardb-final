@@ -106,7 +106,9 @@ static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, ui
   uint64_t salary = *(uint64_t *)(tuple + 264);
 
   // 1. insert pk index
-  pk.insert(id, pos);
+  if (!IsNormalPos(pos)) {
+    pk.insert(id, pos);
+  }
   // 2. insert uk index
   uk.insert(uk_hash, pos);
   // 3. insert sk index
@@ -120,8 +122,19 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
      // performance test中,每个节点的数据是固定的连续两亿条,
      // 比如[0,2e8-1],[2e8, 4e8-1],[4e8, 6e8-1],[6e8, 8e8-1]
     if (key < local_min_pk || key > local_max_pk) return result;
-    uint32_t pos = pk.get(key);
-    if (pos > 0) result.push_back(pos - 1);
+    
+    if (id_range.first <= key && key < id_range.second) {
+      // 普通数据
+      if (IsPosCommit(key - id_range.first)) { // todo(wq): 如果该处必中，则忽略掉check salary
+        result.push_back(key - id_range.first);
+      }
+    } else {
+      // 正确性阶段的随机数据
+      uint32_t pos = pk.get(key);
+      if (pos > 0) {
+        result.push_back(pos - 1);
+      }
+    }
     // uint64_t pk_shard = key % HASH_MAP_COUNT;
     // for (uint64_t pk_shard = 0; pk_shard < HASH_MAP_COUNT; pk_shard++) {
     //   pthread_rwlock_rdlock(&rwlock[0][pk_shard]);

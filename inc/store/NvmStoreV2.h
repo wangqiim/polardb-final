@@ -21,6 +21,10 @@ static void storage_assert(bool condition, const std::string &msg) {
   }
 }
 
+static bool IsNormalPos(uint64_t pos) {
+  return (pos & 0x80000000U) == 0;
+}
+
 /**
  * 数据的组织结构有3个文件组成, pmem_data_file + mmem_data_file + mmem_meta_file
  * mmem_meta_file: 记录meta信息，比如pmem_data_file的起始偏移，比如slot_0的id可能是0或2e或4e或6e
@@ -42,7 +46,6 @@ static void storage_assert(bool condition, const std::string &msg) {
 struct {
   char *address = nullptr;
   uint64_t *offset = nullptr;
-  std::pair<uint64_t, uint64_t> valid_range;
   std::mutex mtx_;
 } MmemMeta;
 
@@ -157,15 +160,15 @@ static void writeTuple(const char *tuple, size_t len) {
       } else {
         *MmemMeta.offset = 0;
       }
-      MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
-      MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
+      id_range.first = uint64_t(*MmemMeta.offset);
+      id_range.second = id_range.first + TOTAL_WRITE_NUM;
     }
   }
 
-  // 如果id属于[MmemMeta.valid_range.first, MmemMeta.valid_range.second), 则写入mem+pmem
+  // 如果id属于[id_range.first, id_range.second), 则写入mem+pmem
   // 否则，写入rand_pmem区域
-  if (MmemMeta.valid_range.first <= id && id < MmemMeta.valid_range.second) {
-    uint64_t pos = id - MmemMeta.valid_range.first;
+  if (id_range.first <= id && id < id_range.second) {
+    uint64_t pos = id - id_range.first;
     // 1. userId, name 写入pmem
     pmem_memcpy_nodrain(PmemData.address + 256 * pos, tuple + 8, 256);
     // 2. salary写入mmem
@@ -190,9 +193,9 @@ static void writeTuple(const char *tuple, size_t len) {
 // is_normal = true 从pmem+mem上读
 // is_normal = false 从rand_pmem上读
 static void readColumFromPos(int32_t select_column, uint64_t pos, void *res) {
-  if ((pos & 0x80000000U) == 0) { // 最高位是0
+  if (IsNormalPos(pos)) { // 最高位是0
     if (select_column == Id) {
-      uint64_t id = pos + MmemMeta.valid_range.first;
+      uint64_t id = pos + id_range.first;
       memcpy(res, &id, 8);
       return;
     }
@@ -238,21 +241,25 @@ static void readColumFromPos(int32_t select_column, uint64_t pos, void *res) {
   }
 }
 
+static bool IsPosCommit(uint64_t pos) {
+  uint64_t salary = *(uint64_t *)(MmemData.address + 8 * pos);
+  const uint64_t UN_COMMIT_SALARY = 0xFFFFFFFFFFFFFFFFUL;
+  return salary != UN_COMMIT_SALARY;
+}
+
 // build index
 static void recovery() {
   uint64_t recovery_cnt = 0;
   unsigned char tuple[RECORD_SIZE];
   // 1. 恢复正常区域的数据
-  if (*MmemMeta.offset != -1) {
+  if (*MmemMeta.offset != 0xFFFFFFFFFFFFFFFFUL) {
     for (uint64_t pos = 0; pos < TOTAL_WRITE_NUM; pos++) {
-      uint64_t salary = *(uint64_t *)(MmemData.address + 8 * pos);
-      const uint64_t UN_COMMIT_SALARY = 0xFFFFFFFFFFFFFFFFUL;
-      if (salary != UN_COMMIT_SALARY) { // 该位置的数据已经提交
-        uint64_t id = pos + MmemMeta.valid_range.first;
+      if (IsPosCommit(pos)) {
+        uint64_t id = pos + id_range.first;
         char *pmem_data_ptr = PmemData.address + 256 * pos;
         memcpy(tuple, &id, 8);
         memcpy(tuple + 8, pmem_data_ptr, 256);
-        memcpy(tuple + 264, &salary, 8);
+        memcpy(tuple + 264, MmemData.address + 8 * pos, 8);
         recovery_cnt++;
         insert_idx((const char *)tuple, RECORD_SIZE, (uint32_t)pos);
       }
@@ -286,8 +293,8 @@ static void init_storage(const std::string &mmem_meta_filename,
     if (res.second) { // 新文件
       *(MmemMeta.offset) = 0xFFFFFFFFFFFFFFFFUL; // 0xFFFFFFFFFFFFFFFFUL 表示offset还未初始化
     } else {
-      MmemMeta.valid_range.first = uint64_t(*MmemMeta.offset);
-      MmemMeta.valid_range.second = MmemMeta.valid_range.first + TOTAL_WRITE_NUM;
+      id_range.first = uint64_t(*MmemMeta.offset);
+      id_range.second = id_range.first + TOTAL_WRITE_NUM;
     }
   }
   // 2. 创建/打开 mmem data file, 如果是创建，则初始化该文件
@@ -330,7 +337,7 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
 
 static char *GetUserIdByPos(uint64_t pos) {
   char *pmem_data_ptr = nullptr;
-  if ((pos & 0x80000000UL) == 0) {
+  if (IsNormalPos(pos)) {
     pmem_data_ptr = PmemData.address + pos * 256;
   } else {
     pos = 0x7FFFFFFFU & pos;

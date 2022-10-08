@@ -90,12 +90,10 @@ static void Put(const char *tuple, size_t len){
 #ifdef debug_db
         stat_log();
 #endif
-        local_min_pk = MmemMeta.valid_range.first;
-        local_max_pk = MmemMeta.valid_range.second - 1;
+        local_min_pk = id_range.first;
+        local_max_pk = id_range.second - 1;
         spdlog::info("local_min_pk = {}, local_max_pk = {}", local_min_pk, local_max_pk);
         is_use_remote_pk = true;
-        // using namespace std::chrono_literals;
-        // std::this_thread::sleep_for(300s);
 
         finished_cv.notify_all();
       }
@@ -137,7 +135,7 @@ static size_t Get(int32_t select_column,
       if (remote_read_count == 1) {
         spdlog::info("first call remote_read_count once");
       }
-      if (remote_read_count % 500000 == 0) {
+      if (remote_read_count % 1000000 == 0) {
         spdlog::info("remote_read_count {}", remote_read_count);
       }
     }
@@ -207,13 +205,10 @@ static size_t Get(int32_t select_column,
       }
 #endif
 
-      if (is_use_remote_pk && result.size + local_get_count != 1) {
-        spdlog::error("[Get] return_num = {}, where_column = {}, column_key = {}", result.size + local_get_count, where_column, *(uint64_t *)column_key);
+      if (result.size + local_get_count == 0) {
+        spdlog::warn("[Get] local + remote return_num = {}, where_column = {}", result.size + local_get_count, where_column);
       }
       return result.size + local_get_count;
-    }
-    if (is_local && is_use_remote_pk && local_get_count != 1) {
-      spdlog::error("[Get] return_num = {}, column_key = {}, column_key = {}", local_get_count, where_column, *(uint64_t *)column_key);
     }
     return local_get_count;
 }

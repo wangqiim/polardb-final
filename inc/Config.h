@@ -33,6 +33,10 @@ enum Column{Id=0,Userid,Name,Salary};
 
 // NvmStore.h
 static char *GetUserIdByPos(uint64_t pos);
+static bool IsNormalPos(uint64_t pos);
+static bool IsPosCommit(uint64_t pos);
+std::pair<uint64_t, uint64_t> id_range; // 本地id的范围[id_range.first, id_range.second)，左闭又开
+
  
 #define debug_db
 
