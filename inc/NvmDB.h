@@ -90,7 +90,7 @@ static void Put(const char *tuple, size_t len) {
         spdlog::info("send salary finish, ready salary_sync finish.....");
         std::unique_lock salary_sync_lk(salary_sync_cnt_mtx);
         if (salary_sync_cnt != Salary_Cache_Num) {
-          salary_sync_cnt_cv.wait(lk);
+          salary_sync_cnt_cv.wait(salary_sync_lk);
         }
         spdlog::info("salary_sync finish!!!");
         finished_cv.notify_all();
