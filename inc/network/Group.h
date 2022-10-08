@@ -193,13 +193,13 @@ static Package clientRemoteGet(int32_t select_column,
 
 void broadcast_salary() {
   // note(wq): ip已经排序，发完一个节点再发下一个节点，应该是无问题的
-  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 0) != 0) {
+  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 0) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 0);
   }
-  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 1) != 0) {
+  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 1) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 1);
   }
-  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 2) != 0) {
+  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 2) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 2);
   }
 }
