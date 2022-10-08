@@ -64,17 +64,9 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
-static std::atomic<uint8_t> putTid(0);
-static void Put(const char *tuple, size_t len){
-    static thread_local uint8_t tid = putTid++;
-    if (tid >= PMEM_FILE_COUNT) {
-      spdlog::error("[Put] tid overflow, current tid = {}", tid);
-    }
+static void Put(const char *tuple, size_t len) {
     static thread_local uint64_t write_count = 0;
     write_count++;
-    if (write_count > PER_THREAD_MAX_WRITE) {
-      spdlog::error("write_count overflow!");
-    }
     writeTuple(tuple, len);
     
     broadcast_salary(*(uint64_t *)(tuple + 264));
