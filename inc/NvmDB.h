@@ -205,9 +205,9 @@ static size_t Get(int32_t select_column,
       }
 #endif
 
-      if (result.size + local_get_count == 0) {
-        spdlog::warn("[Get] local + remote return_num = {}, where_column = {}", result.size + local_get_count, where_column);
-      }
+      // if (result.size + local_get_count == 0) {
+      //   spdlog::warn("[Get] local + remote return_num = {}, where_column = {}", result.size + local_get_count, where_column);
+      // }
       return result.size + local_get_count;
     }
     return local_get_count;
