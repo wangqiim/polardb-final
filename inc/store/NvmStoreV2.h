@@ -181,7 +181,7 @@ static void writeTuple(const char *tuple, size_t len) {
     }
     rel_pos++;
     pmem_memcpy_nodrain(PmemRandom[tid].commit_cnt, &rel_pos, 8);
-    uint32_t abs_pos = tid * PmemRandRecordNumPerThread + (rel_pos - 1);
+    uint64_t abs_pos = tid * PmemRandRecordNumPerThread + (rel_pos - 1);
     abs_pos = abs_pos | 0x80000000U; // 将最高位置为1，用以区分是否是random id区域上的数据
     insert_idx(tuple, len, abs_pos);
   }
@@ -189,7 +189,7 @@ static void writeTuple(const char *tuple, size_t len) {
 
 // is_normal = true 从pmem+mem上读
 // is_normal = false 从rand_pmem上读
-static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
+static void readColumFromPos(int32_t select_column, uint64_t pos, void *res) {
   if ((pos & 0x80000000U) == 0) { // 最高位是0
     if (select_column == Id) {
       uint64_t id = pos + MmemMeta.valid_range.first;
@@ -213,8 +213,8 @@ static void readColumFromPos(int32_t select_column, uint32_t pos, void *res) {
     }
   } else {
     pos = 0x7FFFFFFFU & pos;
-    uint32_t tid = pos / PmemRandRecordNumPerThread;
-    uint32_t rel_pos = pos % PmemRandRecordNumPerThread;
+    uint64_t tid = pos / PmemRandRecordNumPerThread;
+    uint64_t rel_pos = pos % PmemRandRecordNumPerThread;
     if (select_column == Id) {
       char *pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE;
       memcpy(res, pmem_data_ptr, 8);
@@ -267,7 +267,7 @@ static void recovery() {
     }
     for (uint64_t j = 0; j < commit_cnt; j++) {
       memcpy(tuple, PmemRandom[i].address + j*RECORD_SIZE, RECORD_SIZE);
-      uint32_t abs_pos = PmemRandRecordNumPerThread * i + j;
+      uint64_t abs_pos = PmemRandRecordNumPerThread * i + j;
       insert_idx((const char *)tuple, RECORD_SIZE, (1UL << 31) | abs_pos);
       recovery_cnt++;
     }
@@ -328,14 +328,14 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
   spdlog::info("Store Init End");
 }
 
-static char *GetUserIdByPos(uint32_t pos) {
+static char *GetUserIdByPos(uint64_t pos) {
   char *pmem_data_ptr = nullptr;
   if ((pos & 0x80000000UL) == 0) {
     pmem_data_ptr = PmemData.address + pos * 256;
   } else {
     pos = 0x7FFFFFFFU & pos;
-    uint32_t tid = pos / PmemRandRecordNumPerThread;
-    uint32_t rel_pos = pos % PmemRandRecordNumPerThread;
+    uint64_t tid = pos / PmemRandRecordNumPerThread;
+    uint64_t rel_pos = pos % PmemRandRecordNumPerThread;
     pmem_data_ptr = PmemRandom[tid].address + rel_pos * RECORD_SIZE + 8;
   }
   return pmem_data_ptr;
