@@ -175,3 +175,11 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 
   return result;
 }
+
+static void insertRemoteIdToSK(int peer_idx, uint32_t id, uint32_t salary) {
+  //todo(wq)
+}
+
+static void insertRemoteSalaryToPK(uint32_t id, uint64_t salary) {
+  pk.insert_salary(id, salary);
+}

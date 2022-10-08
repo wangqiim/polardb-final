@@ -10,16 +10,18 @@ static CLIENTS_ARRAYS read_clients; // read时发起远程读的客户端, 初�
 static CLIENTS_ARRAYS write_clients; // write时同步给其他节点的客户端, 初始化时，初始化前50 tid对应的客户端,剩余的写线程来的时候，初始化
 static CLIENTS_ARRAYS sync_clients; // 发起同步的客户端，比如init,deinit. 初始化3个客户端用来同步init/deinit
 
-int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid, int server) {
+int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid, int server, RequestType request_type = RequestType::NONE) {
   if ( (clients[server][tid] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     spdlog::error("Socket Create Failure, ip: {}, port: {}, tid: {}", ip, port, tid);
     return -1;
   }
 
-  int on = 1;
-  if (setsockopt(clients[server][tid], IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
+  if (request_type != RequestType::SEND_SALARY) {
+    int on = 1;
+    if (setsockopt(clients[server][tid], IPPROTO_TCP, TCP_NODELAY, (char *)&on, sizeof(int)) < 0) {
       spdlog::error("set socket Close Nagle  error");
-  } 
+    } 
+  }
   struct sockaddr_in serv_addr;//首先要指定一个服务端的ip地址+端口，表明是向哪个服务端发起请求
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
@@ -31,6 +33,13 @@ int init_client_socket(CLIENTS_ARRAYS clients, const char *ip, int port, int tid
     return -1;
   } else {
     spdlog::debug("[create_connect] Socket Connect Success, ip: {}, port: {}, tid: {}", ip, port, tid);
+    // 对于用来发送salary的连接。提前发送一个requestType，告诉服务器连接类型。之后就不需要发request_type了。
+    if (request_type == RequestType::SEND_SALARY) {
+      ssize_t send_bytes = send(write_clients[server][tid], &request_type, sizeof(RequestType), 0);
+      if (send_bytes != sizeof(RequestType)) {
+        spdlog::error("[init_client_socket] send request_type through write clients fail!, errno = {}", errno);
+      }
+    }
     return 0;
   }
   return 0;
@@ -82,7 +91,7 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
   // todo(wq): 直接read整个页应该也行.(不会有其他线程同时读写该socket)
   ssize_t len = read(read_clients[server][tid], &page, 4);
   if (len != 4) {
-    spdlog::warn("[client_broadcast_recv] read fail, len = {}, expected: {}", len, 4);
+    spdlog::warn("[client_broadcast_recv] read fail, len = {}, expected: {}, errno = {}", len, 4, errno);
     page.size = -1;
     read_clients[server][tid] = -1;
     return page;
@@ -107,27 +116,26 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
 }
 
 // 把本地写的salary广播给其他节点
-int client_salary_send(uint64_t salary, int tid, int server) { 
+int client_salary_send(char *salary_ptr, uint64_t send_len, int tid, int server) { 
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  ssize_t send_bytes = send(write_clients[server][tid], &salary, sizeof(uint64_t), 0); 
+  // 先发一个偏移，must success
+  ssize_t send_bytes = send(write_clients[server][tid], &id_range.first, 8, 0);
   if (send_bytes <= 0) {
-    if (send_bytes == 0) { // 远端关闭 eof
-      spdlog::debug("[client_salary_send] read eof!");
-    } else {
-      spdlog::warn("[client_salary_send] Socket Send Server {} Failure, tid: {}, errno = {}", server, tid, errno);
-    }
+    spdlog::warn("[client_salary_send] client_salary_send(offset) server: {} Failure, tid: {}, errno = {}", server, tid, errno);
     write_clients[server][tid] = -1;
     return -1;
-  } else {
-    if (send_bytes != sizeof(uint64_t)) {
-      spdlog::error("[client_salary_send] send fail, send_bytes = {}, expected len: {}", send_bytes, sizeof(uint64_t));
-      exit(1);
+  }
+  uint64_t writen_len = 0;
+  while (writen_len < send_len) {
+    send_bytes = send(write_clients[server][tid], salary_ptr + writen_len, send_len - writen_len, 0);
+    if (send_bytes <= 0) {
+      spdlog::warn("[client_salary_send] client_salary_send(data) server: {} Failure, tid: {}, errno = {}", server, tid, errno);
       write_clients[server][tid] = -1;
       return -1;
     }
-    spdlog::debug("[client_salary_send] Socket Send Server {} Success, tid: {}", server, tid);
+    writen_len += send_bytes;
   }
   return 0;
 }

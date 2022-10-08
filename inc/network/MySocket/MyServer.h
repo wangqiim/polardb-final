@@ -3,6 +3,11 @@
 
 #include "MySocket.h"
 
+uint64_t salary_sync_cnt = 0;
+std::mutex salary_sync_cnt_mtx;
+std::condition_variable salary_sync_cnt_cv;
+const uint32_t Salary_Cache_Num = 6e8;
+
 std::string to_hex(unsigned char* data, int len) {
     std::stringstream ss;
     ss << std::uppercase << std::hex << std::setfill('0');
@@ -14,6 +19,7 @@ std::string to_hex(unsigned char* data, int len) {
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
 const int BUFSIZE = 130;
+const int Salary_BUFSIZE = 4096 * 10;
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -52,6 +58,46 @@ void *connect_client(void *arg) {
                 spdlog::error("[connect_client] sync write fail, writen_bytes = {}, expected = {}", writen_bytes, 1);
             }
             continue;            
+        } else if (request_type == RequestType::SEND_SALARY) {
+            // 1. 接受一个 requestType
+            if (size_len != sizeof(RequestType)) {// 接收一个requestType，确认连接类型。之后就不需要发requesttype了。
+                spdlog::error("[connect_client] read SEND_SALARY request_type, size_len = {}, errno = {}", size_len, errno);
+            }
+            char salary_buf[Salary_BUFSIZE];
+            // 2. 接受一个 offset
+            uint64_t offset;
+            size_len = read(ts->fd, &offset, sizeof(offset));
+            if (size_len != sizeof(offset)) {
+                spdlog::error("[connect_client] read SEND_SALARY request_type, size_len = {}, errno = {}", size_len, errno);
+            }
+            // 3. 循环读socket，构建id,salary索引
+            char *salary_ptr = salary_buf;
+            ssize_t unprocessed_len = 0; //读了以后，还未处理的长度
+            uint64_t id = offset;
+            while (true) {
+                if (salary_ptr - salary_buf == Salary_BUFSIZE) {
+                    salary_ptr = salary_buf;
+                }
+                size_len = read(ts->fd, salary_ptr + unprocessed_len, (salary_buf + Salary_BUFSIZE) - (salary_ptr + unprocessed_len)); // 尝试读满buf
+                unprocessed_len += size_len;
+                if (size_len <= 0) {
+                    spdlog::error("[connect_client] read SEND_SALARY fail, size_len = {}, errno = {}", size_len, errno);
+                    close(ts->fd);
+                    pthread_exit(NULL);
+                }
+                for (; unprocessed_len >= 8; salary_ptr += 8, unprocessed_len -= 8) {
+                  insertRemoteIdToSK(ts->peer_idx, (uint32_t)id, *(uint32_t *)salary_ptr);
+                  insertRemoteSalaryToPK(id, *(uint64_t *)salary_ptr);
+                  id++;
+                }
+                if (id == offset + TOTAL_WRITE_NUM) {
+                    std::unique_lock guard(salary_sync_cnt_mtx);
+                    salary_sync_cnt += TOTAL_WRITE_NUM;
+                    if (salary_sync_cnt == Salary_Cache_Num) {
+                        salary_sync_cnt_cv.notify_all();
+                    }
+                }
+            }
         }
         uint8_t selectColum = (uint8_t)request_type;
         uint8_t whereColum = *(uint8_t *)(buf + 1);

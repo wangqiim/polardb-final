@@ -65,18 +65,17 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 }
 
 static void Put(const char *tuple, size_t len) {
+
+    // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
     static thread_local uint64_t write_count = 0;
     write_count++;
     writeTuple(tuple, len);
-    
-    broadcast_salary(*(uint64_t *)(tuple + 264));
-
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
-        // Store_Sync();
+        // Store_Sync(); // todo(wq): implement me
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
 #ifdef debug_db
@@ -87,6 +86,13 @@ static void Put(const char *tuple, size_t len) {
         spdlog::info("local_min_pk = {}, local_max_pk = {}", local_min_pk, local_max_pk);
         is_use_remote_pk = true;
 
+        broadcast_salary();
+        spdlog::info("send salary finish, ready salary_sync finish.....");
+        std::unique_lock salary_sync_lk(salary_sync_cnt_mtx);
+        if (salary_sync_cnt != Salary_Cache_Num) {
+          salary_sync_cnt_cv.wait(lk);
+        }
+        spdlog::info("salary_sync finish!!!");
         finished_cv.notify_all();
       }
     }

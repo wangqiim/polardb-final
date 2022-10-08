@@ -249,7 +249,6 @@ static bool IsPosCommit(uint64_t pos) {
 
 // build index
 static void recovery() {
-  uint64_t recovery_cnt = 0;
   unsigned char tuple[RECORD_SIZE];
   // 1. 恢复正常区域的数据
   if (*MmemMeta.offset != 0xFFFFFFFFFFFFFFFFUL) {

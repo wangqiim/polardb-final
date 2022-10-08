@@ -183,10 +183,13 @@ class MyPKHashMap {
   MyPKHashMap() {
     hash_table = new uint32_t[hashSize];
     memset(hash_table, 0, sizeof(uint32_t) * hashSize);
+    salary_table = new uint64_t[hashSize];
+    memset(salary_table, 0, sizeof(uint64_t) * hashSize);
   }
 
   ~MyPKHashMap() {
     delete hash_table;
+    delete salary_table;
   }
   //todo 缺少冲突管理
   uint32_t get(uint64_t key) {
@@ -197,7 +200,19 @@ class MyPKHashMap {
     hash_table[key & (hashSize - 1)] = value + 1; //不可能出现0 
   }
 
+  void insert_salary(uint32_t key, uint64_t salary) {
+    uint32_t bucket_idx = key & (hashSize - 1);
+    if (salary_table[bucket_idx] == 0) {
+      salary_table[bucket_idx] = salary + 1;
+    }
+  }
+
+  uint64_t get_salary(uint64_t key) {
+    return salary_table[key & (hashSize - 1)] - 1;
+  }
+
   private:
   uint32_t *hash_table;
-  const uint32_t hashSize = 1<<31;
+  uint64_t *salary_table;
+  const uint32_t hashSize = 1<<30;
 };

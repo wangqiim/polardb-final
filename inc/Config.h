@@ -29,6 +29,8 @@ const int SYNC_Init_Deinit_Tid = 0;
 
 bool is_use_remote_pk = false;
 
+uint64_t recovery_cnt = 0;
+
 enum Column{Id=0,Userid,Name,Salary};
 
 // NvmStore.h

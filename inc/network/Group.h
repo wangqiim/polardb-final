@@ -3,11 +3,10 @@
 #include <string>
 #include <atomic>
 #include "Config.h"
+#include "../store/NvmStoreV2.h"
 #include "spdlog/spdlog.h"
 #include "./MySocket/MyClient.h"
 #include "./MySocket/MyServer.h"
-
-std::string global_peer_host_info[PeerHostInfoNum];
 
 std::atomic<bool> group_is_runing = {false};
 std::atomic<bool> group_is_deinit = {false};
@@ -54,11 +53,6 @@ static void mustAddConnect(int tid) {
 }
 
 static void initGroup(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num) {
-  pthread_t serverId;
-  int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
-  if (ret != 0) {
-    spdlog::error("[initGroup] pthread_create error, ret = {}", ret);
-  }
   // 给peer_host_info排序
   std::string host_info_str(host_info);
   std::vector<std::string> all_host_info_str;
@@ -71,17 +65,20 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
   for (idx = 0; idx < all_host_info_str.size(); idx++) {
     if (all_host_info_str[idx] == host_info_str) break;
   }
-  std::vector<std::string> sorted_peer_host_info;
   int t = peer_host_info_num; // 3
   while (t--) {
     idx = (idx + 1) % all_host_info_str.size();
-    sorted_peer_host_info.push_back(all_host_info_str[idx]);
+    global_peer_host_info.push_back(all_host_info_str[idx]);
   }
 
+  pthread_t serverId;
+  int ret = pthread_create(&serverId, NULL, runServer, (void *)host_info);
+  if (ret != 0) {
+    spdlog::error("[initGroup] pthread_create error, ret = {}", ret);
+  }
   // 初始化连接 read clients, write clients, sync clients
   for (size_t i = 0; i < peer_host_info_num; i++) {
-    global_peer_host_info[i] = sorted_peer_host_info[i];
-    std::string s = sorted_peer_host_info[i];
+    std::string s = global_peer_host_info[i];
     std::string ip, port;
     int flag = s.find(":");
     ip = s.substr(0,flag);
@@ -97,7 +94,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
         }
       }
       while (true) { // 50 tid, 初始化write client
-        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i) < 0) {
+        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i, RequestType::SEND_SALARY) < 0) {
           std::this_thread::sleep_for(std::chrono::seconds(1));
         } else {
           break;
@@ -194,10 +191,18 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
-void broadcast_salary(uint64_t salary) {
-  // todo(wq): implement me!
+void broadcast_salary() {
+  // note(wq): ip已经排序，发完一个节点再发下一个节点，应该是无问题的
+  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 0) != 0) {
+    spdlog::error("[broadcast_salary] error send salary to server: {}", 0);
+  }
+  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 1) != 0) {
+    spdlog::error("[broadcast_salary] error send salary to server: {}", 1);
+  }
+  if (client_salary_send(MmemMeta.address, MmemDataFileSIZE, 0, 2) != 0) {
+    spdlog::error("[broadcast_salary] error send salary to server: {}", 2);
+  }
 }
-
 static void deInitGroup() {
   group_is_deinit.store(true);
   for (int i = 0; i < PeerHostInfoNum; i++) {
