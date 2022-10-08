@@ -254,15 +254,17 @@ static void recovery() {
         memcpy(tuple + 8, pmem_data_ptr, 256);
         memcpy(tuple + 264, &salary, 8);
         recovery_cnt++;
+        insert_idx((const char *)tuple, RECORD_SIZE, (uint32_t)pos);
       }
-      insert_idx((const char *)tuple, RECORD_SIZE, (uint32_t)pos);
     }
   }
-  spdlog::info("[recovery] recovery normal data success!");
+  spdlog::info("[recovery] recovery normal data({}) success!", recovery_cnt);
   // 2. 恢复random写入区域的数据
   for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
     uint64_t commit_cnt = *PmemRandom[i].commit_cnt;
-    spdlog::info("[recovery] randomPmem tid={}, commit_cnt={}!", i, commit_cnt);
+    if (commit_cnt != 0) {
+      spdlog::info("[recovery] randomPmem tid={}, commit_cnt={}!", i, commit_cnt);
+    }
     for (uint64_t j = 0; j < commit_cnt; j++) {
       memcpy(tuple, PmemRandom[i].address + j*RECORD_SIZE, RECORD_SIZE);
       uint32_t abs_pos = PmemRandRecordNumPerThread * i + j;
