@@ -77,11 +77,12 @@ class MySalaryHashMap {
 
  void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
   // todo(wq): implement me
-    uint32_t pos = key & (hashSize_ - 1);
-    if (hash_table[pos].value == 0) return;
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    if (hash_table[bucket_idx].value == 0) return;
     else {
+      uint32_t pos = hash_table[bucket_idx].value - 1;
       if (is_local(pos)) {
-        ans.push_back(hash_table[pos].value - 1);        
+        ans.push_back(pos);        
       } else {
         need_remote_peers[Pos2Peer_idx(pos)] = true;
       }
