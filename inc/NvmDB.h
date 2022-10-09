@@ -55,20 +55,20 @@ std::condition_variable finished_cv;
 static int finished_write_thread_cnt = 0;
 
 // --------------- background salary broadcast -------------------
-uint64_t write_count[PMEM_FILE_COUNT];
+std::atomic<uint64_t> sync_write_count[PMEM_FILE_COUNT];
 std::thread bg_salary_broadcast_th;
 
 void bg_salary_broadcast() {
-  // todo(wq): 当cpu cache上的write_count同步过慢时，考虑把write_count改成原子变量?
   uint64_t has_send_num = 0;
   while (has_send_num != PER_THREAD_MAX_WRITE) {
     uint64_t min_send_salary_num = PER_THREAD_MAX_WRITE;
     for (size_t tid = 0; tid < PMEM_FILE_COUNT; tid++) {
-      min_send_salary_num = std::min(min_send_salary_num, write_count[tid]);
+      min_send_salary_num = std::min(min_send_salary_num, sync_write_count[tid].load());
     }
     if (has_send_num != min_send_salary_num) {
       uint64_t cur_send_sarlay_num = (min_send_salary_num - has_send_num) * PMEM_FILE_COUNT;
       broadcast_salary(has_send_num * PMEM_FILE_COUNT, cur_send_sarlay_num);
+      has_send_num = min_send_salary_num;
       spdlog::info("[bg_salary_broadcast] has_send_num = {}", has_send_num);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -91,9 +91,13 @@ static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len) {
     static thread_local uint8_t tid = putTid++;
     // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
-    write_count[tid]++;
+    static thread_local uint64_t write_count = 0;
     writeTuple(tuple, len);
-    if (write_count[tid] == PER_THREAD_MAX_WRITE) {
+    write_count++;
+    if (write_count % 100 == 0) {
+      sync_write_count[tid].store(write_count);
+    }
+    if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
