@@ -111,7 +111,7 @@ static void Put(const char *tuple, size_t len) {
         local_min_pk = id_range.first;
         local_max_pk = id_range.second - 1;
         spdlog::info("local_min_pk = {}, local_max_pk = {}", local_min_pk, local_max_pk);
-        is_use_remote_pk = true;
+        is_sync_all = true;
 
         spdlog::info("ready salary_sync finish.....");
         std::unique_lock salary_sync_lk(salary_sync_cnt_mtx);
@@ -187,7 +187,7 @@ static size_t Get(int32_t select_column,
                     exit(1);
                 }
             }
-            if (where_column != Salary) return posArray.size();
+            if (where_column != Salary || is_sync_all) return posArray.size();
         }
         local_get_count = posArray.size();
 //    }
