@@ -64,11 +64,15 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
 
+static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len) {
-
+    static thread_local uint8_t tid = putTid++;
     // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
     static thread_local uint64_t write_count = 0;
     write_count++;
+    if (write_count < 50) {
+      spdlog::info("[Put] thread: {} put {}th tuple, id = {}", tid, write_count, *(uint64_t *)tuple);
+    }
     writeTuple(tuple, len);
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
@@ -123,7 +127,7 @@ static size_t Get(int32_t select_column,
       if (where_column == 3) sk_local_count++;
       local_read_count++;
       if (local_read_count == 1) {
-        spdlog::info("first call local_read_count once");
+        spdlog::debug("first call local_read_count once");
       }
       if (local_read_count % 500000 == 0) {
         spdlog::info("local_read_count {}", local_read_count);
@@ -131,7 +135,7 @@ static size_t Get(int32_t select_column,
     } else {
       remote_read_count++;
       if (remote_read_count == 1) {
-        spdlog::info("first call remote_read_count once");
+        spdlog::debug("first call remote_read_count once");
       }
       if (remote_read_count % 1000000 == 0) {
         spdlog::info("remote_read_count {}", remote_read_count);
