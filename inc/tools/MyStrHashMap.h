@@ -18,8 +18,33 @@ struct alignas(4) MyStrHead {
     uint32_t value = 0;
 };
 
+/**
+ * value的存储格式(uint32_t),从左到右，对应高位到低位
+ * -------------------------------------------------------------------------------------------------------------------------
+ * |            第31位             |                         第29~30位                     |   第28位  | 第0~27位            |
+ * -------------------------------------------------------------------------------------------------------------------------
+ * | 0: normal数据区，1: rand数据区 | 00: 对应本地, 01、10、11: 对应远端是哪一个peer_idx(1~3) |   未使用  | position(0 ~ 2亿-1) |
+ * -------------------------------------------------------------------------------------------------------------------------
+ * 
+*/
 class MySalaryHashMap {
   public:
+  static uint32_t peeridx_offset(uint32_t peer_idx, uint32_t id) {
+    // (第29~30位) | (第0~27位)
+    return ((peer_idx + 1) << 29) | (id - peer_offset[peer_idx]);
+  } 
+
+  static uint32_t Pos2Id(uint32_t pos) {
+    uint32_t peer = (pos & 0x60000000U) >> 29; // 掩码第29~30位
+    uint32_t rel_pos = pos & 0x0FFFFFFFU; // 掩码低28位
+    return rel_pos + peer_offset[peer - 1];
+  }
+
+  // peer_idx值为0,1,2
+  static uint32_t Pos2Peer_idx(uint32_t pos) { return ((pos & 0x60000000U) >> 29) - 1; }
+
+  static bool is_local(uint32_t pos) { return (pos & 0x60000000U) == 0; } // 第29~30位是00
+
   typedef std::pair<uint64_t, uint32_t> kv_pair; // 16 bytes
   MySalaryHashMap(uint32_t hashSize, std::string file_name) {
     hash_table = new MyStrHead[hashSize];
@@ -40,12 +65,28 @@ class MySalaryHashMap {
     delete hash_table;
   }
 
- void get(uint64_t key, std::vector<uint32_t> &ans) {
+  // note(wq): 对存在本地上的数据，调用该接口是无意义的!!!(结果错误)
+  // todo(wq): 如果需要调用该接口能获取本地的id，则需要添加逻辑处理偏移，以及rand pmem区域上的数据。
+  bool get_id(uint64_t key, uint64_t *id) {
+    uint32_t bucket_idx = key & (hashSize_ - 1);
+    if (hash_table[bucket_idx].value == 0) return false;
+    uint32_t pos = hash_table[bucket_idx].value - 1;
+    *id = Pos2Id(pos);
+    return true;
+  }
+
+ void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
+  // todo(wq): implement me
     uint32_t pos = key & (hashSize_ - 1);
     if (hash_table[pos].value == 0) return;
     else {
-      ans.push_back(hash_table[pos].value - 1);
+      if (is_local(pos)) {
+        ans.push_back(hash_table[pos].value - 1);        
+      } else {
+        need_remote_peers[Pos2Peer_idx(pos)] = true;
+      }
       if (pmem_record_num_ != 0) {
+        // todo(wq): 性能阶段增加冲突处理
         std::lock_guard<std::mutex> guard(mtx);
         for (uint64_t i = 0; i < pmem_record_num_; i++) {
           kv_pair temp = *(kv_pair *)(pmem_addr_ + i * sizeof(kv_pair));

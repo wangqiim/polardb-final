@@ -46,6 +46,9 @@ void stat_log() {
   spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
   spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
   spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
+  for (size_t i = 0; i < 3; i++) {
+    spdlog::info("peer_offset[{}] = {}", i, peer_offset[i]);
+  }
 }
 
 #endif
@@ -169,7 +172,8 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local); // todo(wq): optimize std::vector<uint32_t>
+        bool need_remote_peers[3] = {false, false, false}; // todo(wq): 是否需要改成 true, true, true
+        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local, need_remote_peers); // todo(wq): optimize std::vector<uint32_t>
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
@@ -203,16 +207,18 @@ static size_t Get(int32_t select_column,
         char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
         memcpy(hash_colum_key, &uid.hashCode, 8);
-        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid);
+        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
       } else {
         bool is_find = false;
-        if (where_column == Id && select_column == Salary && is_sync_all) {
+        if (is_sync_all && where_column == Id && select_column == Salary) {
           getRemoteSalaryFromPK(*(uint64_t *)column_key, (char *)res, is_find);
+        } else if (is_sync_all && where_column == Salary && select_column == Id) {
+          getRemoteIdFromSK(*(uint64_t *)column_key, (char *)res, is_find);
         }
         if (is_find) {
           return 1;
         }
-        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
+        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
       }
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;

@@ -112,7 +112,7 @@ static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, ui
   sk.insert(salary, pos);
 }
 
-static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local) {
+static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
   std::vector<uint32_t> result;
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
@@ -160,7 +160,7 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 //    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   } else if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
-    sk.get(salary, result);
+    sk.get(salary, result, need_remote_peers);
     // uint64_t sk_shard = salary % HASH_MAP_COUNT;
     // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
 //    uint64_t sk_shard = sk_shardhashfn(salary);
@@ -177,7 +177,11 @@ static std::vector<uint32_t> getPosFromKey(int32_t where_column, const void *col
 }
 
 static void insertRemoteIdToSK(int peer_idx, uint32_t id, uint32_t salary) {
-  //todo(wq)
+  sk.insert(salary, MySalaryHashMap::peeridx_offset(peer_idx, id));
+}
+
+static void getRemoteIdFromSK(uint64_t salary, char *res, bool &is_find) {
+  is_find = sk.get_id(salary, (uint64_t *)res);
 }
 
 static void insertRemoteSalaryToPK(uint32_t id, uint64_t salary) {

@@ -70,6 +70,7 @@ void *connect_client(void *arg) {
             if (size_len != sizeof(offset)) {
                 spdlog::error("[connect_client] read SEND_SALARY request_type, size_len = {}, errno = {}", size_len, errno);
             }
+            peer_offset[ts->peer_idx] = offset;
             // 3. 循环读socket，构建id,salary索引
             char *salary_ptr = salary_buf;
             ssize_t unprocessed_len = 0; //读了以后，还未处理的长度
