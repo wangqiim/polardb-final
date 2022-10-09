@@ -70,9 +70,9 @@ static void Put(const char *tuple, size_t len) {
     // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
     static thread_local uint64_t write_count = 0;
     write_count++;
-    if (write_count < 50) {
-      spdlog::info("[Put] thread: {} put {}th tuple, id = {}", tid, write_count, *(uint64_t *)tuple);
-    }
+    // if (write_count < 50) {
+    //   spdlog::info("[Put] thread: {} put {}th tuple, id = {}", tid, write_count, *(uint64_t *)tuple);
+    // }
     writeTuple(tuple, len);
     if (write_count == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
