@@ -54,12 +54,35 @@ std::mutex finished_mtx;
 std::condition_variable finished_cv;
 static int finished_write_thread_cnt = 0;
 
+// --------------- background salary broadcast -------------------
+uint64_t write_count[PMEM_FILE_COUNT];
+std::thread bg_salary_broadcast_th;
+
+void bg_salary_broadcast() {
+  // todo(wq): 当cpu cache上的write_count同步过慢时，考虑把write_count改成原子变量?
+  uint64_t has_send_num = 0;
+  while (has_send_num != PER_THREAD_MAX_WRITE) {
+    uint64_t min_send_salary_num = PER_THREAD_MAX_WRITE;
+    for (size_t tid = 0; tid < PMEM_FILE_COUNT; tid++) {
+      min_send_salary_num = std::min(min_send_salary_num, write_count[tid]);
+    }
+    if (has_send_num != min_send_salary_num) {
+      uint64_t cur_send_sarlay_num = (min_send_salary_num - has_send_num) * PMEM_FILE_COUNT;
+      broadcast_salary(has_send_num * PMEM_FILE_COUNT, cur_send_sarlay_num);
+      spdlog::info("[bg_salary_broadcast] has_send_num = {}", has_send_num);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+    spdlog::info("[bg_salary_broadcast] finish");
+}
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
     initIndex();
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
+    bg_salary_broadcast_th = std::thread(bg_salary_broadcast);
     Util::print_resident_set_size();
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
@@ -68,13 +91,9 @@ static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len) {
     static thread_local uint8_t tid = putTid++;
     // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
-    static thread_local uint64_t write_count = 0;
-    write_count++;
-    // if (write_count < 50) {
-    //   spdlog::info("[Put] thread: {} put {}th tuple, id = {}", tid, write_count, *(uint64_t *)tuple);
-    // }
+    write_count[tid]++;
     writeTuple(tuple, len);
-    if (write_count == PER_THREAD_MAX_WRITE) {
+    if (write_count[tid] == PER_THREAD_MAX_WRITE) {
       std::unique_lock lk(finished_mtx);
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
@@ -90,8 +109,7 @@ static void Put(const char *tuple, size_t len) {
         spdlog::info("local_min_pk = {}, local_max_pk = {}", local_min_pk, local_max_pk);
         is_use_remote_pk = true;
 
-        broadcast_salary();
-        spdlog::info("send salary finish, ready salary_sync finish.....");
+        spdlog::info("ready salary_sync finish.....");
         std::unique_lock salary_sync_lk(salary_sync_cnt_mtx);
         if (salary_sync_cnt != Salary_Cache_Num) {
           salary_sync_cnt_cv.wait(salary_sync_lk);

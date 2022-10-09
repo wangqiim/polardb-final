@@ -191,15 +191,20 @@ static Package clientRemoteGet(int32_t select_column,
   return result;
 }
 
-void broadcast_salary() {
+// has_send_num: 已经发送的salary个数
+// cur_send_num: 本轮要发送的salary个数
+void broadcast_salary(uint64_t has_send_num, uint64_t cur_send_num) {
+  bool need_send_offset = (has_send_num == 0);
+  char *send_ptr = MmemData.address + (has_send_num * 8);
+  uint64_t send_bytes = (cur_send_num * 8);
   // note(wq): ip已经排序，发完一个节点再发下一个节点，应该是无问题的
-  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 0) != 0) {
+  if (client_salary_send(send_ptr, send_bytes, 0, 0, need_send_offset) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 0);
   }
-  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 1) != 0) {
+  if (client_salary_send(send_ptr, send_bytes, 0, 1, need_send_offset) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 1);
   }
-  if (client_salary_send(MmemData.address, MmemDataFileSIZE, 0, 2) != 0) {
+  if (client_salary_send(send_ptr, send_bytes, 0, 2, need_send_offset) != 0) {
     spdlog::error("[broadcast_salary] error send salary to server: {}", 2);
   }
 }

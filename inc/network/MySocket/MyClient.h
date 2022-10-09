@@ -116,16 +116,19 @@ Package client_broadcast_recv(uint8_t select_column, int tid, int server) {
 }
 
 // 把本地写的salary广播给其他节点
-int client_salary_send(char *salary_ptr, uint64_t send_len, int tid, int server) { 
+int client_salary_send(char *salary_ptr, uint64_t send_len, int tid, int server, bool need_send_offset) { 
   if (write_clients[server][tid] == -1) {
     return -1;
   }
-  // 先发一个偏移，must success
-  ssize_t send_bytes = send(write_clients[server][tid], &id_range.first, 8, 0);
-  if (send_bytes <= 0) {
-    spdlog::warn("[client_salary_send] client_salary_send(offset) server: {} Failure, tid: {}, errno = {}", server, tid, errno);
-    write_clients[server][tid] = -1;
-    return -1;
+  ssize_t send_bytes = 0;
+  if (need_send_offset) {
+    // 先发一个偏移，must success
+    send_bytes = send(write_clients[server][tid], &id_range.first, 8, 0);
+    if (send_bytes <= 0) {
+      spdlog::warn("[client_salary_send] client_salary_send(offset) server: {} Failure, tid: {}, errno = {}", server, tid, errno);
+      write_clients[server][tid] = -1;
+      return -1;
+    }
   }
   uint64_t writen_len = 0;
   while (writen_len < send_len) {
