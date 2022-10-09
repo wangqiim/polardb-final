@@ -169,7 +169,7 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local);
+        std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local); // todo(wq): optimize std::vector<uint32_t>
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
