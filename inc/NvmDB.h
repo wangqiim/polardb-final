@@ -205,6 +205,13 @@ static size_t Get(int32_t select_column,
         memcpy(hash_colum_key, &uid.hashCode, 8);
         result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid);
       } else {
+        bool is_find = false;
+        if (where_column == Id && select_column == Salary && is_sync_all) {
+          getRemoteSalaryFromPK(*(uint64_t *)column_key, (char *)res, is_find);
+        }
+        if (is_find) {
+          return 1;
+        }
         result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid);
       }
       int dataSize = 0;

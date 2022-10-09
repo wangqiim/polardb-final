@@ -208,7 +208,7 @@ class MyPKHashMap {
   }
 
   uint64_t get_salary(uint64_t key) {
-    return salary_table[key & (hashSize - 1)] - 1;
+    return salary_table[key & (hashSize - 1)]; //如果返回值是 0,表示是空的
   }
 
   private:

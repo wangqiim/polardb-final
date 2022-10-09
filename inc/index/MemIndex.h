@@ -183,3 +183,12 @@ static void insertRemoteIdToSK(int peer_idx, uint32_t id, uint32_t salary) {
 static void insertRemoteSalaryToPK(uint32_t id, uint64_t salary) {
   pk.insert_salary(id, salary);
 }
+
+static void getRemoteSalaryFromPK(uint64_t id, char *res, bool &is_find) {
+  uint64_t salary = pk.get_salary(id);
+  if (salary > 0) {
+    is_find = true;
+    salary -= 1;
+    memcpy(res, &salary, 8);
+  }
+}
