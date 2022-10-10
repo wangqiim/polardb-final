@@ -84,7 +84,6 @@ void bg_salary_broadcast() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   spdlog::info("[bg_salary_broadcast] finish");
-  sync();
 }
 
 std::thread bg_heartbeat_th;
@@ -92,6 +91,9 @@ void bg_heartbeat() {
   while (true) {
     if (is_sync_all) { // 性能读阶段才开始打印
       spdlog::info("[bg_heartbeat] total_read_count = {}", pk_local_count + uk_local_count + sk_local_count);
+      if (pk_local_count + uk_local_count + sk_local_count == 2e8) {
+          sync();
+      }
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
