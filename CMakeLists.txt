@@ -15,6 +15,8 @@ add_definitions(-DMSGPACK_NO_BOOST)
 add_subdirectory(third_party)
 include_directories(third_party/spdlog/include)
 
+find_package(OpenMP REQUIRED)
+
 file(GLOB_RECURSE native_srcs src/*.cpp)
 
 # generate .so file
@@ -25,7 +27,7 @@ include_directories(inc
 add_library(interface SHARED ${native_srcs} )
 
 # must link TBB::tbbmalloc TBB::tbbmalloc_proxy, it will decrease memory usage  
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem TBB::tbbmalloc TBB::tbbmalloc_proxy)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} pmemlog pmem TBB::tbbmalloc TBB::tbbmalloc_proxy OpenMP::OpenMP_CXX)
         
 # dingtalk_nxjewr
 

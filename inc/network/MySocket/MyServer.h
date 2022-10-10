@@ -19,7 +19,8 @@ std::string to_hex(unsigned char* data, int len) {
 
 // Select 1 Byte Where 1 Byte CloumKey max 128 Bytes
 const int BUFSIZE = 130;
-const int Salary_BUFSIZE = 4096 * 10;
+const int Salary_BUFSIZE = 8 * int(2e6); // note(wq): 开大一点，在for循环中replay其他节点索引的时候，也许可以降低更多的同步开销？
+char Salary_Buf[3][Salary_BUFSIZE];
 
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len);
@@ -63,7 +64,7 @@ void *connect_client(void *arg) {
             if (size_len != sizeof(RequestType)) {// 接收一个requestType，确认连接类型。之后就不需要发requesttype了。
                 spdlog::error("[connect_client] read SEND_SALARY request_type, size_len = {}, errno = {}", size_len, errno);
             }
-            char salary_buf[Salary_BUFSIZE];
+            char * const salary_buf = Salary_Buf[ts->peer_idx];
             // 2. 接受一个 offset
             uint64_t offset;
             size_len = read(ts->fd, &offset, sizeof(offset));
@@ -86,11 +87,17 @@ void *connect_client(void *arg) {
                     close(ts->fd);
                     pthread_exit(NULL);
                 }
-                for (; unprocessed_len >= 8; salary_ptr += 8, unprocessed_len -= 8) {
-                  insertRemoteIdToSK(ts->peer_idx, (uint32_t)id, *(uint32_t *)salary_ptr);
-                  insertRemoteSalaryToPK(id, *(uint64_t *)salary_ptr);
-                  id++;
+                ssize_t unprocessed_num = unprocessed_len / 8;
+                uint64_t tmp_id = id;
+#pragma omp parallel for
+                for (ssize_t i = 0; i < unprocessed_num; i++) {
+                  insertRemoteIdToSK(ts->peer_idx, (uint32_t)(tmp_id + i), *(uint32_t *)(salary_ptr + 8 * i));
+                  insertRemoteSalaryToPK(tmp_id + i, *(uint64_t *)(salary_ptr + 8 * i));
                 }
+                salary_ptr += unprocessed_num * 8;
+                unprocessed_len -= unprocessed_num * 8;
+                id += unprocessed_num;
+                
                 if (id == offset + TOTAL_WRITE_NUM) {
                     std::unique_lock guard(salary_sync_cnt_mtx);
                     salary_sync_cnt += TOTAL_WRITE_NUM;
