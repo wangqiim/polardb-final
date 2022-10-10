@@ -175,6 +175,21 @@ static void my_server_run(const char *ip, int port) {
         }
         ts[i].s_addr = client;
         ts[i].fd = client_fd;
+        ts[i].peer_idx = -1;
+        for (size_t idx = 0; idx < PeerHostInfoNum; idx++) {
+            std::string s = global_peer_host_info[idx];
+            std::string ip, port;
+            int flag = s.find(":");
+            ip = s.substr(0,flag);
+            if (ts[i].s_addr.sin_addr.s_addr == inet_addr(ip.c_str())) {
+                ts[i].peer_idx = idx;
+                break;
+            }
+        }
+        if (ts[i].peer_idx == -1) {
+            spdlog::error("[my_server_run] set peer_idx fail!");
+            exit(0);
+        }
 
         pthread_t tid;
         pthread_create(&tid, NULL, connect_client, (void *)&ts[i]);
