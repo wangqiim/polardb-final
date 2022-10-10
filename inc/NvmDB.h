@@ -86,6 +86,16 @@ void bg_salary_broadcast() {
     spdlog::info("[bg_salary_broadcast] finish");
 }
 
+std::thread bg_heartbeat_th;
+void bg_heartbeat() {
+  while (true) {
+    if (is_sync_all) { // 性能读阶段才开始打印
+      spdlog::info("[bg_heartbeat] total_read_count = {}", pk_local_count + uk_local_count + sk_local_count);
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
+
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
@@ -93,6 +103,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
     bg_salary_broadcast_th = std::thread(bg_salary_broadcast);
+    bg_heartbeat_th = std::thread(bg_heartbeat);
     Util::print_resident_set_size();
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
@@ -112,9 +123,10 @@ static void Put(const char *tuple, size_t len) {
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
-        Store_Sync(false); // true: async, false: sync
-        Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
+        Store_Sync(false); // true: async, false: sync
+        spdlog::info("Store_Sync finish");
+        Util::print_resident_set_size();
 #ifdef debug_db
         stat_log();
 #endif
