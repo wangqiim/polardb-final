@@ -83,7 +83,8 @@ void bg_salary_broadcast() {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-    spdlog::info("[bg_salary_broadcast] finish");
+  spdlog::info("[bg_salary_broadcast] finish");
+  sync();
 }
 
 std::thread bg_heartbeat_th;
@@ -124,7 +125,7 @@ static void Put(const char *tuple, size_t len) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
         spdlog::info("total write 200000000 tuples");
-        Store_Sync(false); // true: async, false: sync
+//        Store_Sync(false); // true: async, false: sync
         spdlog::info("Store_Sync finish");
         Util::print_resident_set_size();
 #ifdef debug_db
