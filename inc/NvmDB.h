@@ -46,8 +46,9 @@ void stat_log() {
   spdlog::info("sk_local_hit_remote_miss {}", sk_local_hit_remote_miss);
   spdlog::info("sk_local_miss_remote_hit {}", sk_local_miss_remote_hit);
   spdlog::info("sk_local_miss_remote_miss {}", sk_local_miss_remote_miss);
+  spdlog::info("local_offset = {}, ip: {}", id_range.first, global_local_host_info);
   for (size_t i = 0; i < 3; i++) {
-    spdlog::info("peer_offset[{}] = {}", i, peer_offset[i]);
+    spdlog::info("peer_offset[{}] = {}, ip: {}", i, peer_offset[i], global_peer_host_info[i]);
   }
 }
 
@@ -172,7 +173,7 @@ static size_t Get(int32_t select_column,
 //    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
 //        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
 //    } else {
-        bool need_remote_peers[3] = {false, false, false}; // todo(wq): 是否需要改成 true, true, true
+        bool need_remote_peers[3] = {true, true, true}; // todo(wq): 是否需要改成 true, true, true
         std::vector<uint32_t> posArray = getPosFromKey(where_column, column_key, is_local, need_remote_peers); // todo(wq): optimize std::vector<uint32_t>
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {

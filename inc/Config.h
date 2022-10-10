@@ -34,7 +34,7 @@ uint64_t recovery_cnt = 0;
 enum Column{Id=0,Userid,Name,Salary};
 
 // remote节点,目前提供的保证是，进入读阶段时，3个值取自{0, 2e8, 4e8, 6e8}
-uint64_t peer_offset[3];
+uint64_t peer_offset[3] = {-1UL, -1UL, -1UL};
 // NvmStore.h
 static char *GetUserIdByPos(uint64_t pos);
 static bool IsNormalPos(uint64_t pos);

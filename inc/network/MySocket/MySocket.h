@@ -15,6 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 
+std::string global_local_host_info;
 std::vector<std::string> global_peer_host_info;
 
 enum class RequestType : uint8_t {

@@ -76,7 +76,6 @@ class MySalaryHashMap {
   }
 
  void get(uint64_t key, std::vector<uint32_t> &ans, bool *need_remote_peers) {
-  // todo(wq): implement me
     uint32_t bucket_idx = key & (hashSize_ - 1);
     if (hash_table[bucket_idx].value == 0) return;
     else {
@@ -84,7 +83,12 @@ class MySalaryHashMap {
       if (is_local(pos)) {
         ans.push_back(pos);        
       } else {
-        need_remote_peers[Pos2Peer_idx(pos)] = true;
+        uint32_t hit_idx = Pos2Peer_idx(pos);
+        for (uint32_t peer_idx = 0; peer_idx < 3; peer_idx++) {
+          if (peer_idx != hit_idx) {
+            need_remote_peers[peer_idx] = false;
+          }
+        }
       }
       if (pmem_record_num_ != 0) {
         // todo(wq): 性能阶段增加冲突处理

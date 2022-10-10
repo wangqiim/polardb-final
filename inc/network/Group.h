@@ -66,6 +66,7 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
     if (all_host_info_str[idx] == host_info_str) break;
   }
   int t = peer_host_info_num; // 3
+  global_local_host_info = all_host_info_str[idx];
   while (t--) {
     idx = (idx + 1) % all_host_info_str.size();
     global_peer_host_info.push_back(all_host_info_str[idx]);
