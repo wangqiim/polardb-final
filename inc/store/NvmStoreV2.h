@@ -346,3 +346,13 @@ static char *GetUserIdByPos(uint64_t pos) {
   }
   return pmem_data_ptr;
 }
+
+static void Store_Sync(bool is_async) {
+  if (is_async) {
+    msync(MmemMeta.address, MmemMetaFileSIZE, MS_ASYNC);
+    msync(MmemData.address, MmemDataFileSIZE, MS_ASYNC);
+  } else {
+    msync(MmemMeta.address, MmemMetaFileSIZE, MS_SYNC);
+    msync(MmemData.address, MmemDataFileSIZE, MS_SYNC);
+  }
+}

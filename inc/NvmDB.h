@@ -112,7 +112,7 @@ static void Put(const char *tuple, size_t len) {
       if (++finished_write_thread_cnt != 50) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
-        // Store_Sync(); // todo(wq): implement me
+        Store_Sync(true); // true: async, false: sync
         Util::print_resident_set_size();
         spdlog::info("total write 200000000 tuples");
 #ifdef debug_db
