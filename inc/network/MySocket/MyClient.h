@@ -143,22 +143,6 @@ int client_salary_send(char *salary_ptr, uint64_t send_len, int tid, int server,
   return 0;
 }
 
-// 确认广播的ack
-// 返回值: 0:成功，其他值:失败
-int client_salary_recv(int tid, int server) {
-  if (write_clients[server][tid] == -1) {
-    return -1;
-  }
-  uint8_t response_code = 0;
-  ssize_t len = read(write_clients[server][tid], &response_code, sizeof(uint8_t));
-  if (len != 1) {
-    spdlog::warn("[client_salary_recv] read fail, len = {}, expected: {}, errno = {}", len, sizeof(uint8_t), errno);
-    write_clients[server][tid] = -1;
-    return -1;
-  }
-  return 0;
-}
-
 // return_value: 
 // 0: false
 // 1: true

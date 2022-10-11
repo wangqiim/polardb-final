@@ -94,15 +94,15 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
           break;
         }
       }
-      while (true) { // 50 tid, 初始化write client
-        if (init_client_socket(write_clients, ip.c_str(), stoi(port), tid, i, RequestType::SEND_SALARY) < 0) {
-          std::this_thread::sleep_for(std::chrono::seconds(1));
-        } else {
-          break;
-        }
+    }
+    while (true) { // 初始化write client, note(wq): 3个就够了
+      if (init_client_socket(write_clients, ip.c_str(), stoi(port), 0, i, RequestType::SEND_SALARY) < 0) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      } else {
+        break;
       }
     }
-    while (true) { // 初始化sync client
+    while (true) { // 初始化sync client, note(wq): 3个就够了
       if (init_client_socket(sync_clients, ip.c_str(), stoi(port), SYNC_Init_Deinit_Tid, i) < 0) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       } else {
