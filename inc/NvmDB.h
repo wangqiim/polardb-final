@@ -76,6 +76,7 @@ void bg_salary_broadcast() {
       min_send_salary_num = std::min(min_send_salary_num, sync_write_count[tid].load());
     }
     if (has_send_num != min_send_salary_num) {
+      is_sync_all = true;
       uint64_t cur_send_sarlay_num = (min_send_salary_num - has_send_num) * PMEM_FILE_COUNT;
       broadcast_salary(has_send_num * PMEM_FILE_COUNT, cur_send_sarlay_num);
       has_send_num = min_send_salary_num;
@@ -91,6 +92,7 @@ void bg_heartbeat() {
   while (true) {
     if (is_sync_all) { // 性能读阶段才开始打印
       spdlog::info("[bg_heartbeat] total_read_count = {}", pk_local_count + uk_local_count + sk_local_count);
+      Util::print_sysCpuUsage();
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
@@ -124,8 +126,8 @@ static void Put(const char *tuple, size_t len) {
         finished_cv.wait(lk); // 兜底可以用wait_for保证正确性
       } else {
         spdlog::info("total write 200000000 tuples");
-//        Store_Sync(false); // true: async, false: sync
-        spdlog::info("Store_Sync finish");
+        // Store_Sync(false); // true: async, false: sync
+        // spdlog::info("Store_Sync finish");
         Util::print_resident_set_size();
 #ifdef debug_db
         stat_log();
