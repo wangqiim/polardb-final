@@ -22,7 +22,7 @@ std::string to_hex(unsigned char* data, int len) {
 const int BUFSIZE = 130;
 const int Salary_BUFSIZE = 8 * int(2e6); // note(wq): 开大一点，在for循环中replay其他节点索引的时候，也许可以降低更多的同步开销？
 char Salary_Buf[3][Salary_BUFSIZE];
-const int OMP_THREAD_NUM = 16;
+const int OMP_THREAD_NUM = 32;
 
 
 static Package remoteGet(int32_t select_column,
