@@ -67,7 +67,7 @@ static int finished_write_thread_cnt = 0;
 // --------------- background salary broadcast -------------------
 std::atomic<uint64_t> sync_write_count[PMEM_FILE_COUNT];
 std::thread bg_salary_broadcast_th;
-
+const uint64_t MAX_NUM_PER_BC = 100000; // 每次广播允许发送的最大数量
 void bg_salary_broadcast() {
   uint64_t has_send_num = 0;
   while (has_send_num != PER_THREAD_MAX_WRITE) {
@@ -75,8 +75,13 @@ void bg_salary_broadcast() {
     for (size_t tid = 0; tid < PMEM_FILE_COUNT; tid++) {
       min_send_salary_num = std::min(min_send_salary_num, sync_write_count[tid].load());
     }
-    if (has_send_num != min_send_salary_num) {
+    while (has_send_num != min_send_salary_num) {
       is_sync_all = true;
+      if (min_send_salary_num - has_send_num > MAX_NUM_PER_BC) { // 如果本轮将要发送的数据量大于MAX_NUM_PER_BC，则拆成小包(MAX_NUM_PER_BC) 循环发送.
+        broadcast_salary(has_send_num * PMEM_FILE_COUNT, MAX_NUM_PER_BC * PMEM_FILE_COUNT);
+        has_send_num += MAX_NUM_PER_BC;
+        continue;
+      }
       uint64_t cur_send_sarlay_num = (min_send_salary_num - has_send_num) * PMEM_FILE_COUNT;
       broadcast_salary(has_send_num * PMEM_FILE_COUNT, cur_send_sarlay_num);
       has_send_num = min_send_salary_num;
