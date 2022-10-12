@@ -308,7 +308,7 @@ static void init_storage(const std::string &mmem_meta_filename,
     auto res = must_init_pmem_file(pmem_data_filename, PmemDataFileSIZE, default_value);
     PmemData.address  = res.first;
   }
-  // 3. 创建/打开 pmem random file, 如果是创建，则初始化该文件
+  // 4. 创建/打开 pmem random file, 如果是创建，则初始化该文件
   {
     uint8_t default_value = 0;
     auto res = must_init_pmem_file(pmem_random_filename, TotalPmemRandomFileSIZE, default_value);
@@ -316,6 +316,7 @@ static void init_storage(const std::string &mmem_meta_filename,
       PmemRandom[i].address = res.first + (i * PmemRandomFileSIZEPerThread) + 8;
       PmemRandom[i].commit_cnt = reinterpret_cast<uint64_t *>(res.first + (i * PmemRandomFileSIZEPerThread));
     }
+    pmem_msync(res.first, TotalPmemRandomFileSIZE);
   }
 }
 

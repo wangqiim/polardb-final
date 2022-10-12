@@ -59,6 +59,7 @@ class MySalaryHashMap {
       spdlog::error("[MySalaryHashMap] pmem_map_file");
     }
     pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
+    pmem_msync(pmem_addr_, mmap_size);
   }
 
   ~MySalaryHashMap() {
@@ -111,6 +112,7 @@ class MySalaryHashMap {
       std::lock_guard<std::mutex> guard(mtx);
       kv_pair temp = {key ,value};
       pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * sizeof(kv_pair), &temp, sizeof(kv_pair));
+      pmem_drain();
       pmem_record_num_++;
     }
   }
@@ -143,6 +145,7 @@ class MyUserIdHashMap {
       spdlog::error("[MyUserIdHashMap] pmem_map_file");
     }
     pmem_memset_nodrain(pmem_addr_, 0, mmap_size);
+    pmem_msync(pmem_addr_, mmap_size);
   }
 
   ~MyUserIdHashMap() {
@@ -180,6 +183,7 @@ class MyUserIdHashMap {
     } else {
       std::lock_guard<std::mutex> guard(mtx);
       pmem_memcpy_nodrain(pmem_addr_ + pmem_record_num_ * 4, &value, 4);
+      pmem_drain();
       pmem_record_num_++;
     }
   }

@@ -87,16 +87,18 @@ void bg_salary_broadcast() {
   spdlog::info("[bg_salary_broadcast] finish");
 }
 
+#ifdef debug_db
 std::thread bg_heartbeat_th;
 void bg_heartbeat() {
   while (true) {
     if (is_sync_all) { // 性能读阶段才开始打印
+      Util::print_sysCpuUsage(); // 调用时，会sleep 1秒
       spdlog::info("[bg_heartbeat] total_read_count = {}", pk_local_count + uk_local_count + sk_local_count);
-      Util::print_sysCpuUsage();
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }
+#endif
 
 static void initNvmDB(const char* host_info, const char* const* peer_host_info, size_t peer_host_info_num,
                 const char* aep_dir, const char* disk_dir){
@@ -105,7 +107,9 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
     bg_salary_broadcast_th = std::thread(bg_salary_broadcast);
+#ifdef debug_db
     bg_heartbeat_th = std::thread(bg_heartbeat);
+#endif
     Util::print_resident_set_size();
     spdlog::info("[initNvmDB] NvmDB Init END");
 }
