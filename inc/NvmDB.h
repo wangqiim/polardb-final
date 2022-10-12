@@ -117,7 +117,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
 static std::atomic<uint8_t> putTid(0);
 static void Put(const char *tuple, size_t len) {
     static thread_local uint8_t tid = putTid++;
-    // _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
+     _mm_prefetch(tuple, _MM_HINT_T0); // todo(wq): may it is useless
     static thread_local uint64_t write_count = 0;
     writeTuple(tuple, len);
     write_count++;
