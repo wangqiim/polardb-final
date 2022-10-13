@@ -112,7 +112,7 @@ static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, ui
   sk.insert(salary, pos);
 }
 
-static void getPosFromKey_Local(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool *need_remote_peers) {
+static void getPosFromKey_Local(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, uint32_t *need_remote_peers) {
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
      // performance test中,每个节点的数据是固定的连续两亿条,
@@ -141,7 +141,7 @@ static void getPosFromKey_Local(std::vector<uint32_t> &result, int32_t where_col
   return;
 }
 
-static void getPosFromKey_Remote(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool *need_remote_peers) {
+static void getPosFromKey_Remote(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, uint32_t *need_remote_peers) {
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
      // performance test中,每个节点的数据是固定的连续两亿条,

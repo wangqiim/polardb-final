@@ -130,20 +130,20 @@ static void initGroup(const char* host_info, const char* const* peer_host_info, 
 // 1. 依次向3个节点发送请求(write)，发送完以后进入第二步
 // 2. 依次从3个节点读取数据(read)
 static Package clientRemoteGet(int32_t select_column,
-          int32_t where_column, const void *column_key, size_t column_key_len, int tid, bool *need_remote_peers) {
+          int32_t where_column, const void *column_key, size_t column_key_len, int tid, uint32_t *need_remote_peers) {
   //每个线程自己维护remote_server
   static thread_local uint8_t remote_pk_in_client[4] = {0,0,0,0};
   // 1. broadcast phrase1: send
   uint64_t id_to_server = (*(uint64_t *)column_key) / 200000000;
   bool pk_has_find_server = false;
   for (int i = 0; i < PeerHostInfoNum; i++) {
+    if (*need_remote_peers != 3 && *need_remote_peers != i) continue;
     if (where_column == 0 && is_sync_all && id_to_server < 4 && remote_pk_in_client[id_to_server] > 0) {
       if(i != remote_pk_in_client[id_to_server] - 1) {
         continue;
       }
       pk_has_find_server = true;
     }
-    if (where_column == Salary && is_sync_all && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     // 不需要检验ret,如果发送出错，读的时候也会出错，不会永远阻塞住。
     client_broadcast_send(select_column, where_column, column_key, column_key_len, tid, i);
   }
@@ -151,8 +151,8 @@ static Package clientRemoteGet(int32_t select_column,
   Package result;
   result.size = 0;
   for (int i = 0; i < PeerHostInfoNum; i++) {
+    if (*need_remote_peers != 3 && *need_remote_peers != i) continue;
     if (pk_has_find_server && i != remote_pk_in_client[id_to_server] - 1) continue;
-    if (where_column == Salary && is_sync_all && recovery_cnt == 0 && need_remote_peers[i] == false) continue; // 过滤salary remote get
     Package package = client_broadcast_recv(select_column, tid, i);
     if (package.size == -1) {
       continue;

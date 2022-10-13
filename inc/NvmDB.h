@@ -170,10 +170,10 @@ static size_t Get_Local(int32_t select_column,
     }
     // 2. 尝试从本地读
     size_t local_get_count = 0;
-        bool need_remote_peers[3] = {true, true, true};
+        uint32_t need_remote_peers = 3;
         static thread_local std::vector<uint32_t> posArray;
         posArray.clear();
-        getPosFromKey_Local(posArray, where_column, column_key, need_remote_peers); 
+        getPosFromKey_Local(posArray, where_column, column_key, &need_remote_peers); 
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
@@ -205,7 +205,7 @@ static size_t Get_Local(int32_t select_column,
       Package result;
       if (where_column == 1) {
         UserId uid = UserId((char *)column_key);
-        result = clientRemoteGet(select_column, where_column, &uid.hashCode, 8, tid, need_remote_peers);
+        result = clientRemoteGet(select_column, where_column, &uid.hashCode, 8, tid, &need_remote_peers);
       } else {
         bool is_find = false;
         if (is_sync_all && where_column == Id && select_column == Salary) {
@@ -226,12 +226,7 @@ static size_t Get_Local(int32_t select_column,
         if (is_find) {
           return 1;
         }
-#ifdef debug_db
-        if (is_sync_all && where_column == Salary && need_remote_peers[0] && need_remote_peers[1] && need_remote_peers[2]) {
-          sk_broadcast_after_sync++;
-        }
-#endif
-        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, need_remote_peers);
+        result = clientRemoteGet(select_column, where_column, column_key, column_key_len, tid, &need_remote_peers);
       }
       int dataSize = 0;
       if(select_column == Id || select_column == Salary) dataSize = result.size * 8;
@@ -266,10 +261,10 @@ static size_t Get_Local(int32_t select_column,
 // -----------------------------remoteGet-------------------------------
 static size_t Get_Remote(int32_t select_column,
           int32_t where_column, const void *column_key, size_t column_key_len, void *res){
-  bool need_remote_peers[3] = {true, true, true};
+  uint32_t need_remote_peers = 3;
   static thread_local std::vector<uint32_t> posArray;
   posArray.clear();
-  getPosFromKey_Remote(posArray, where_column, column_key, need_remote_peers); 
+  getPosFromKey_Remote(posArray, where_column, column_key, &need_remote_peers); 
   uint32_t result_bytes = 0;
   if (posArray.size() > 0) {
     for (uint32_t pos: posArray) {
