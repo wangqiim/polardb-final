@@ -104,6 +104,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
     initIndex();
+    sync(); // note(wq): 这里是系统中唯一调用的一次sync，必须在初始化store之前
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
     bg_salary_broadcast_th = std::thread(bg_salary_broadcast);
