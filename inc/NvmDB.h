@@ -75,7 +75,7 @@ void bg_salary_broadcast() {
     for (size_t tid = 0; tid < PMEM_FILE_COUNT; tid++) {
       min_send_salary_num = std::min(min_send_salary_num, sync_write_count[tid].load());
     }
-    if (has_send_num != min_send_salary_num) {
+    if (min_send_salary_num - has_send_num >= 50000 || min_send_salary_num == PER_THREAD_MAX_WRITE) {
       is_sync_all = true;
       uint64_t cur_send_sarlay_num = (min_send_salary_num - has_send_num) * PMEM_FILE_COUNT;
       broadcast_salary(has_send_num * PMEM_FILE_COUNT, cur_send_sarlay_num);
