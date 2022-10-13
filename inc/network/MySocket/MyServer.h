@@ -111,27 +111,35 @@ void *connect_client(void *arg) {
                 }
             }
         }
-        uint8_t selectColum = (uint8_t)request_type;
-        uint8_t whereColum = *(uint8_t *)(buf + 1);
-        char *column_key = buf + 2;
+        while (true) {
+            uint8_t selectColum = *(uint8_t *)buf;
+            uint8_t whereColum = *(uint8_t *)(buf + 1);
+            char *column_key = buf + 2;
 
-        ssize_t column_key_len = 8;
-        spdlog::debug("[connect_client] select = {}, where = {}, key = {}",selectColum, whereColum, *(uint64_t *)column_key);
+            ssize_t column_key_len = 8;
 
-        if (size_len != 2 + column_key_len) {
-            spdlog::error("[connect_client] read error, size_len = {}, expected: {}",size_len , 2 + column_key_len);
-        }
-        Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
+            Package page = remoteGet(selectColum, whereColum, column_key, column_key_len);
 
-        if (selectColum == Id || selectColum == Salary) {
-            column_key_len = 8;
-        } else {
-            column_key_len = 128;
-        }
-        ssize_t data_size = page.size * column_key_len + 4; //数据长度加上Size
-        ssize_t writen_bytes = write(ts->fd, &page, data_size);
-        if (writen_bytes != data_size) {
-            spdlog::error("[connect_client] server_socket write error, writen_bytes = {}, expected: {}", writen_bytes, data_size);
+            if (selectColum == Id || selectColum == Salary) {
+                column_key_len = 8;
+            } else {
+                column_key_len = 128;
+            }
+            ssize_t data_size = page.size * column_key_len + 4; //数据长度加上Size
+            ssize_t writen_bytes = write(ts->fd, &page, data_size);
+            if (writen_bytes != data_size) {
+                spdlog::error("[connect_client] server_socket write error, writen_bytes = {}, expected: {}", writen_bytes, data_size);
+            }
+            size_len = read(ts->fd, buf, BUFSIZE);
+            if (size_len <= 0) {
+                if (size_len == 0) {
+                    spdlog::debug("[connect_client] close");
+                } else {
+                    spdlog::error("[connect_client] read error, errno = {}", errno);
+                }
+                close(ts->fd);
+                pthread_exit(NULL);
+            }
         }
     }
 }

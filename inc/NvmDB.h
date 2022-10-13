@@ -154,11 +154,11 @@ static void Put(const char *tuple, size_t len) {
 }
 
 static std::atomic<uint8_t> getTid(0);
-static size_t Get(int32_t select_column,
-          int32_t where_column, const void *column_key, size_t column_key_len, void *res, bool is_local){
+static size_t Get_Local(int32_t select_column,
+          int32_t where_column, const void *column_key, size_t column_key_len, void *res){
     static thread_local uint8_t tid = 0;
     // 1. 设置tid
-    if (is_local == true && tid == 0) { // socket_server 也会调用该函数，防止tid溢出
+    if (tid == 0) { // socket_server 也会调用该函数，防止tid溢出
       tid = getTid++;
       if (tid >= 50) {
         if (tid >= MAX_Client_Num) {
@@ -168,40 +168,12 @@ static size_t Get(int32_t select_column,
         mustAddConnect(tid);
       }
     }
-    // 2. 输出一些log来debug
-#ifdef debug_db
-    static thread_local int local_read_count = 0;
-    static thread_local int remote_read_count = 0;
-    if (is_local) {
-      if (where_column == 0) pk_local_count++;
-      if (where_column == 1) uk_local_count++;
-      if (where_column == 3) sk_local_count++;
-      local_read_count++;
-      if (local_read_count == 1) {
-        spdlog::debug("first call local_read_count once");
-      }
-      if (local_read_count % 1000000 == 0) {
-        spdlog::info("local_read_count {}", local_read_count);
-      }
-    } else {
-      remote_read_count++;
-      if (remote_read_count == 1) {
-        spdlog::debug("first call remote_read_count once");
-      }
-      if (remote_read_count % 1000000 == 0) {
-        spdlog::info("remote_read_count {}", remote_read_count);
-      }
-    }
-#endif
-    // 3. 尝试从本地读
+    // 2. 尝试从本地读
     size_t local_get_count = 0;
-//    if (where_column == 1 && (select_column == 0 || select_column == 3)) {
-//        local_get_count = getValueFromUK(select_column, column_key, is_local, res);
-//    } else {
         bool need_remote_peers[3] = {true, true, true};
         static thread_local std::vector<uint32_t> posArray;
         posArray.clear();
-        getPosFromKey(posArray, where_column, column_key, is_local, need_remote_peers); 
+        getPosFromKey_Local(posArray, where_column, column_key, need_remote_peers); 
         uint32_t result_bytes = 0;
         if (posArray.size() > 0) {
             for (uint32_t pos: posArray) {
@@ -223,9 +195,8 @@ static size_t Get(int32_t select_column,
             if (where_column != Salary || is_sync_all) return posArray.size();
         }
         local_get_count = posArray.size();
-//    }
-    // 4. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
-    if ((local_get_count == 0 || where_column == Salary) && is_local) {
+    // 3. 从本地读不到，则从远端读。对于salary列，即使本地读到了，也要尝试从远端读
+    if (local_get_count == 0 || where_column == Salary) {
 #ifdef debug_db
       if (where_column == 0) pk_remote_count++;
       if (where_column == 1) uk_remote_count++;
@@ -233,10 +204,8 @@ static size_t Get(int32_t select_column,
 #endif
       Package result;
       if (where_column == 1) {
-        char hash_colum_key[8];
         UserId uid = UserId((char *)column_key);
-        memcpy(hash_colum_key, &uid.hashCode, 8);
-        result = clientRemoteGet(select_column, where_column, hash_colum_key, 8, tid, need_remote_peers);
+        result = clientRemoteGet(select_column, where_column, &uid.hashCode, 8, tid, need_remote_peers);
       } else {
         bool is_find = false;
         if (is_sync_all && where_column == Id && select_column == Salary) {
@@ -294,20 +263,35 @@ static size_t Get(int32_t select_column,
     return local_get_count;
 }
 
+// -----------------------------remoteGet-------------------------------
+static size_t Get_Remote(int32_t select_column,
+          int32_t where_column, const void *column_key, size_t column_key_len, void *res){
+  bool need_remote_peers[3] = {true, true, true};
+  static thread_local std::vector<uint32_t> posArray;
+  posArray.clear();
+  getPosFromKey_Remote(posArray, where_column, column_key, need_remote_peers); 
+  uint32_t result_bytes = 0;
+  if (posArray.size() > 0) {
+    for (uint32_t pos: posArray) {
+      readColumFromPos(select_column, pos, res);
+      if (where_column != Salary) return 1;
+      if (select_column == Id || select_column == Salary) {
+          result_bytes += 8;
+          res = (char *) res + 8;
+      }
+      if (select_column == Userid || select_column == Name) {
+          result_bytes += 128;
+          res = (char *) res + 128;
+      }
+    }
+  }
+  return posArray.size();
+}
+
 static Package remoteGet(int32_t select_column,
           int32_t where_column, char *column_key, size_t column_key_len) {
   Package packge;
-  uint64_t key = *(uint64_t *)(column_key);
-  spdlog::debug("Remote Get Select {} where {} key {}", select_column, where_column, key);
-
-  packge.size = Get(select_column, where_column, column_key, column_key_len, packge.data, false);
-  if (packge.size > 0) {
-    if (select_column == Salary || select_column == Id) {
-      spdlog::debug("Result Size = {}, Value = {}", packge.size, *(uint64_t *)packge.data);
-    } else {
-      spdlog::debug("Result Size = {}, Value = {}", packge.size, packge.data);
-    }
-  }
+  packge.size = Get_Remote(select_column, where_column, column_key, column_key_len, packge.data);
   return packge;
 }
 

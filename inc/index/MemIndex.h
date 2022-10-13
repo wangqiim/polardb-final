@@ -112,7 +112,7 @@ static void insert_idx(const char *tuple, __attribute__((unused)) size_t len, ui
   sk.insert(salary, pos);
 }
 
-static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool is_local, bool *need_remote_peers) {
+static void getPosFromKey_Local(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool *need_remote_peers) {
   if (where_column == Id) {
     uint64_t key = *(uint64_t *)column_key;
      // performance test中,每个节点的数据是固定的连续两亿条,
@@ -131,47 +131,41 @@ static void getPosFromKey(std::vector<uint32_t> &result, int32_t where_column, c
         result.push_back(pos - 1);
       }
     }
-    // uint64_t pk_shard = key % HASH_MAP_COUNT;
-    // for (uint64_t pk_shard = 0; pk_shard < HASH_MAP_COUNT; pk_shard++) {
-    //   pthread_rwlock_rdlock(&rwlock[0][pk_shard]);
-    //   auto it = pk[pk_shard].find(key);
-    //   if (it != pk[pk_shard].end()) {
-    //     result.push_back(it->second);
-    //     pthread_rwlock_unlock(&rwlock[0][pk_shard]);
-    //     return result;
-    //   }
-    //   pthread_rwlock_unlock(&rwlock[0][pk_shard]);
-    // }
   } else if (where_column == Userid) {
-    UserId uid;
-    if(is_local) {
-      uid = UserId((char *)column_key);
-    } else { // 网络请求直接传递得到的是hashcode(user_id)而不是user_id[128]，降低网络带宽
-      memcpy(&uid.hashCode, (char *)column_key, 8);
-    }
+    UserId uid((char *)column_key);
     uk.get(uid.hashCode, result, (const char *)column_key); // todo(wq): 网络请求只传递了hashcode,未传递实际数据
-//    uint32_t uk_shard = shardhashfn(uid.hashCode);
-//    pthread_rwlock_rdlock(&uk_rwlock[uk_shard]);
-//    auto it = uk[uk_shard].find(uid);
-//    if (it != uk[uk_shard].end()) {
-//      result.push_back(it->second);
-//    }
-//    pthread_rwlock_unlock(&uk_rwlock[uk_shard]);
   } else if (where_column == Salary) {
     uint64_t salary = *(uint64_t *)((char *)column_key);
     sk.get(salary, result, need_remote_peers);
-    // uint64_t sk_shard = salary % HASH_MAP_COUNT;
-    // for (uint64_t sk_shard = 0; sk_shard < SK_HASH_MAP_SHARD; sk_shard++) {
-//    uint64_t sk_shard = sk_shardhashfn(salary);
-//    pthread_rwlock_rdlock(&sk_rwlock[sk_shard]);
-//    auto its = sk[sk_shard].equal_range(salary);
-//    for (auto it = its.first; it != its.second; ++it) {
-//      result.push_back(it.Second());
-//    }
-//    pthread_rwlock_unlock(&sk_rwlock[sk_shard]);
-    // }
   }
+  return;
+}
 
+static void getPosFromKey_Remote(std::vector<uint32_t> &result, int32_t where_column, const void *column_key, bool *need_remote_peers) {
+  if (where_column == Id) {
+    uint64_t key = *(uint64_t *)column_key;
+     // performance test中,每个节点的数据是固定的连续两亿条,
+     // 比如[0,2e8-1],[2e8, 4e8-1],[4e8, 6e8-1],[6e8, 8e8-1]
+    if (key < local_min_pk || key > local_max_pk) return;
+    
+    if (id_range.first <= key && key < id_range.second) {
+      // 普通数据
+      if (IsPosCommit(key - id_range.first)) { // todo(wq): 如果该处必中，则忽略掉check salary
+        result.push_back(key - id_range.first);
+      }
+    } else {
+      // 正确性阶段的随机数据
+      uint32_t pos = pk.get(key);
+      if (pos > 0) {
+        result.push_back(pos - 1);
+      }
+    }
+  } else if (where_column == Userid) {
+    uk.get(*(uint64_t *)column_key, result, (const char *)column_key); // todo(wq): 网络请求只传递了hashcode,未传递实际数据
+  } else if (where_column == Salary) {
+    uint64_t salary = *(uint64_t *)((char *)column_key);
+    sk.get(salary, result, need_remote_peers);
+  }
   return;
 }
 
@@ -188,10 +182,5 @@ static void insertRemoteSalaryToPK(uint32_t id, uint64_t salary) {
 }
 
 static void getRemoteSalaryFromPK(uint64_t id, char *res, bool &is_find) {
-  uint64_t salary = pk.get_salary(id);
-  if (salary > 0) {
-    is_find = true;
-    salary -= 1;
-    memcpy(res, &salary, 8);
-  }
+  is_find = pk.get_salary(id, (uint64_t *)res);
 }
