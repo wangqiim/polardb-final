@@ -104,7 +104,7 @@ static void initNvmDB(const char* host_info, const char* const* peer_host_info, 
                 const char* aep_dir, const char* disk_dir){
     spdlog::info("[initNvmDB] NvmDB Init Begin");
     initIndex();
-    sync(); // note(wq): 这里是系统中唯一调用的一次sync，必须在初始化store之前
+    // sync(); // note(wq): 这里是系统中唯一调用的一次sync，必须在初始化store之前
     initStore(aep_dir, disk_dir);
     initGroup(host_info, peer_host_info, peer_host_info_num);
     bg_salary_broadcast_th = std::thread(bg_salary_broadcast);
@@ -182,14 +182,9 @@ static size_t Get_Local(int32_t select_column,
                 if (select_column == Id || select_column == Salary) {
                     result_bytes += 8;
                     res = (char *) res + 8;
-                }
-                if (select_column == Userid || select_column == Name) {
+                } else {
                     result_bytes += 128;
                     res = (char *) res + 128;
-                }
-                if (result_bytes >= PACKAGE_DATA_SIZE) {
-                    spdlog::error("result overflow!!!!!!");
-                    exit(1);
                 }
             }
             if (where_column != Salary || is_sync_all) return posArray.size();
@@ -271,12 +266,11 @@ static size_t Get_Remote(int32_t select_column,
       readColumFromPos(select_column, pos, res);
       if (where_column != Salary) return 1;
       if (select_column == Id || select_column == Salary) {
-          result_bytes += 8;
-          res = (char *) res + 8;
-      }
-      if (select_column == Userid || select_column == Name) {
-          result_bytes += 128;
-          res = (char *) res + 128;
+        result_bytes += 8;
+        res = (char *) res + 8;
+      } else {
+        result_bytes += 128;
+        res = (char *) res + 128;
       }
     }
   }

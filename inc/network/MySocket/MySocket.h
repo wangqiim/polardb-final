@@ -36,12 +36,12 @@ struct s_info {
     int peer_idx;
 } ts[MAX_LISTEN_CONN];
 
-const int PACKAGE_DATA_SIZE = 2000 * 8;
+const int PACKAGE_DATA_SIZE = 1000 * 8;
 
 struct Package {
   int32_t size = 0;
   char data[PACKAGE_DATA_SIZE];
 };
 
-const int NSendBuf = 10000 * 8;
-const int NRecvBuf = 10000 * 8;
+const int NSendBuf = 50000 * 8;
+const int NRecvBuf = 50000 * 8;
