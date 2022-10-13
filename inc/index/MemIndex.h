@@ -182,5 +182,10 @@ static void insertRemoteSalaryToPK(uint32_t id, uint64_t salary) {
 }
 
 static void getRemoteSalaryFromPK(uint64_t id, char *res, bool &is_find) {
-  is_find = pk.get_salary(id, (uint64_t *)res);
+  uint64_t salary = pk.get_salary(id);
+  if (salary > 0) {
+    is_find = true;
+    salary -= 1;
+    memcpy(res, &salary, 8);
+  }
 }
