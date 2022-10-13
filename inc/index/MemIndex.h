@@ -121,7 +121,7 @@ static void getPosFromKey_Local(std::vector<uint32_t> &result, int32_t where_col
     
     if (id_range.first <= key && key < id_range.second) {
       // 普通数据
-      if (IsPosCommit(key - id_range.first)) { // todo(wq): 如果该处必中，则忽略掉check salary
+      if (is_sync_all || IsPosCommit(key - id_range.first)) {
         result.push_back(key - id_range.first);
       }
     } else {
@@ -150,7 +150,7 @@ static void getPosFromKey_Remote(std::vector<uint32_t> &result, int32_t where_co
     
     if (id_range.first <= key && key < id_range.second) {
       // 普通数据
-      if (IsPosCommit(key - id_range.first)) { // todo(wq): 如果该处必中，则忽略掉check salary
+      if (is_sync_all || IsPosCommit(key - id_range.first)) {
         result.push_back(key - id_range.first);
       }
     } else {
