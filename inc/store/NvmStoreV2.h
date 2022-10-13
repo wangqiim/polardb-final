@@ -75,6 +75,10 @@ struct {
   char *address = nullptr;
 } PmemData;
 
+struct {
+  char *address = nullptr;
+} PmemData_V2;
+
 /**
  * pmem_random_file 上数据存储commit_cnt和append完整记录，每个写入线程各有一个。
  * --------------------------------------------------------------------
@@ -89,9 +93,13 @@ struct {
   uint64_t *commit_cnt;
 } PmemRandom[PMEM_FILE_COUNT];
 
+const uint64_t PmemData_V2_WRITE_NUM = TOTAL_WRITE_NUM / 10;
+const uint64_t PmemData_V2_OFFSET = TOTAL_WRITE_NUM - PmemData_V2_WRITE_NUM;
+
 const uint64_t MmemMetaFileSIZE = 8;          // 目前仅仅存储(offset)
 const uint64_t MmemDataFileSIZE = 8 * TOTAL_WRITE_NUM;    // 2亿条salary
-const uint64_t PmemDataFileSIZE = 256 * TOTAL_WRITE_NUM;  // 2亿条 (user_id, name)
+const uint64_t PmemDataFileSIZE = 256 * TOTAL_WRITE_NUM;  // 1亿8kw条 (user_id, name)
+const uint64_t PmemData_V2FileSIZE = 256 * PmemData_V2_WRITE_NUM;  // 2kw条 (user_id, name)
 
 // (commit_cnt(8 bytes) + 100W) * 50，用来handle正确性阶段的随机id写入，每个线程不会写超过100万条数据
 const uint64_t PmemRandRecordNumPerThread = 1000000; // 400W太大，pmem不够放
@@ -170,7 +178,11 @@ static void writeTuple(const char *tuple, size_t len) {
   if (id_range.first <= id && id < id_range.second) {
     uint64_t pos = id - id_range.first;
     // 1. userId, name 写入pmem
-    pmem_memcpy_nodrain(PmemData.address + 256 * pos, tuple + 8, 256);
+    if (pos >= PmemData_V2_OFFSET && is_sync_all) {
+      memcpy(PmemData_V2.address + 256 * (pos - PmemData_V2_OFFSET), tuple + 8, 256);
+    } else {
+      pmem_memcpy_nodrain(PmemData.address + 256 * pos, tuple + 8, 256);
+    }
     // 2. salary写入mmem
     memcpy(MmemData.address + 8 * pos, tuple + 264, 8);
     pmem_drain();
@@ -200,11 +212,21 @@ static void readColumFromPos(int32_t select_column, uint64_t pos, void *res) {
       return;
     }
     if (select_column == Userid) {
+      if (pos >= PmemData_V2_OFFSET && is_sync_all) {
+        char *pmem_data_ptr = PmemData_V2.address + (pos - PmemData_V2_OFFSET) * 256;
+        memcpy(res, pmem_data_ptr, 128);
+        return;
+      }
       char *pmem_data_ptr = PmemData.address + pos * 256;
       memcpy(res, pmem_data_ptr, 128);
       return;
     }
     if (select_column == Name) {
+      if (pos >= PmemData_V2_OFFSET && is_sync_all) {
+        char *pmem_data_ptr = PmemData_V2.address + (pos - PmemData_V2_OFFSET) * 256;
+        memcpy(res, pmem_data_ptr + 128, 128);
+        return;
+      }
       char *pmem_data_ptr = PmemData.address + pos * 256;
       memcpy(res, pmem_data_ptr + 128, 128);
       return;
@@ -307,6 +329,21 @@ static void init_storage(const std::string &mmem_meta_filename,
     uint8_t default_value = 0;
     auto res = must_init_pmem_file(pmem_data_filename, PmemDataFileSIZE, default_value);
     PmemData.address  = res.first;
+    PmemData_V2.address = (char *)malloc(PmemData_V2FileSIZE);
+    if (PmemData_V2.address == nullptr) {
+      spdlog::error("[init_storage] PmemData_V2.address fail");
+    }
+    memset(PmemData_V2.address, default_value, PmemData_V2FileSIZE);
+  }
+  // 4. 创建/打开 pmem random file, 如果是创建，则初始化该文件
+  {
+    uint8_t default_value = 0;
+    auto res = must_init_pmem_file(pmem_random_filename, TotalPmemRandomFileSIZE, default_value);
+    for (uint64_t i = 0; i < PMEM_FILE_COUNT; i++) {
+      PmemRandom[i].address = res.first + (i * PmemRandomFileSIZEPerThread) + 8;
+      PmemRandom[i].commit_cnt = reinterpret_cast<uint64_t *>(res.first + (i * PmemRandomFileSIZEPerThread));
+    }
+    pmem_msync(res.first, TotalPmemRandomFileSIZE);
   }
   // 4. 创建/打开 pmem random file, 如果是创建，则初始化该文件
   {
@@ -338,7 +375,11 @@ static void initStore(const char* aep_dir,  const char* disk_dir) {
 static char *GetUserIdByPos(uint64_t pos) {
   char *pmem_data_ptr = nullptr;
   if (IsNormalPos(pos)) {
-    pmem_data_ptr = PmemData.address + pos * 256;
+    if (pos >= PmemData_V2_OFFSET && is_sync_all) {
+      pmem_data_ptr = PmemData_V2.address + (pos - PmemData_V2_OFFSET) * 256;
+    } else {
+      pmem_data_ptr = PmemData.address + pos * 256;
+    }
   } else {
     pos = 0x7FFFFFFFU & pos;
     uint64_t tid = pos / PmemRandRecordNumPerThread;
