@@ -1,4 +1,7 @@
 # 概览
+
+![架构](./DB_Structure.png)
+
 我们的实现中主要包含四个部分，分别是storage、index、network和engine(DB)。
 - storage：负责管理数据的写入和存取，以及数据的崩溃恢复。
 - index: 用来管理内存中的索引的组织形势，负责索引的读和写。
